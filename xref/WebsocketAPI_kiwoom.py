@@ -12,23 +12,26 @@ import RestAPI_kiwoom
 # noinspection SpellCheckingInspection,NonAsciiCharacters,PyPep8Naming,PyAttributeOutsideInit
 class WebsocketAPIkiwoom:
     def __init__(self):
+        # 폴더 정의
+        self.folder_베이스 = os.path.dirname(os.path.abspath(__file__))
+        self.folder_프로젝트 = os.path.dirname(self.folder_베이스)
+
+        # config 읽어 오기
+        dic_config = json.load(open(os.path.join(self.folder_프로젝트, 'config.json'), mode='rt', encoding='utf-8'))
+
         # 기준정보 정의
-        self.s_서버구분 = '실서버'   # 실서버, 모의서버
-        self.s_거래소 = 'KRX'    # KRX:한국거래소, NXT:넥스트트레이드
+        self.s_서버구분 = dic_config['서버구분']   # 실서버, 모의서버
+        self.s_거래소 = dic_config['거래소구분']    # KRX:한국거래소, NXT:넥스트트레이드
         self.s_서버주소 = self.info_서버주소()
 
-        # 폴더 정의
-        self.folder_기준 = os.path.dirname(os.path.abspath(__file__))
-
         # 변수 정의
-        self.s_오늘 = pd.Timestamp.now().strftime('%Y%m%d')
         self.websocket = None
         self.b_연결상태 = False
         self.b_동작중 = True
 
         # 토큰 발급
-        rest = RestAPI_kiwoom.RestAPIkiwoom()
-        self.s_접근토큰 = rest.auth_접근토큰갱신()
+        restapi = RestAPI_kiwoom.RestAPIkiwoom()
+        self.s_접근토큰 = restapi.auth_접근토큰갱신()
 
     async def connent_서버(self):
         """ 서버에 연결 요청 """

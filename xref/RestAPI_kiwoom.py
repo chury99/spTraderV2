@@ -8,40 +8,38 @@ import time
 # noinspection SpellCheckingInspection,NonAsciiCharacters,PyPep8Naming,PyShadowingNames,PyTypeChecker
 class RestAPIkiwoom:
     def __init__(self):
-        # 기준정보 정의
-        self.s_서버구분 = '실서버'   # 실서버, 모의서버
-        self.s_거래소 = 'KRX'    # KRX:한국거래소, NXT:넥스트트레이드
-        self.n_tr딜레이 = 0.5    # tr 요청간 딜레이
-
         # 폴더 정의
-        self.folder_기준 = os.path.dirname(os.path.abspath(__file__))
-        self.folder_전체종목 = os.path.join(self.folder_기준, '전체종목')
+        self.folder_베이스 = os.path.dirname(os.path.abspath(__file__))
+        self.folder_프로젝트 = os.path.dirname(self.folder_베이스)
 
-        # 변수 정의
-        self.s_오늘 = pd.Timestamp.now().strftime('%Y%m%d')
+        # config 읽어 오기
+        dic_config = json.load(open(os.path.join(self.folder_프로젝트, 'config.json'), mode='rt', encoding='utf-8'))
+
+        # 기준정보 정의
+        self.s_서버구분 = dic_config['서버구분']   # 실서버, 모의서버
+        self.s_거래소 = dic_config['거래소구분']    # KRX:한국거래소, NXT:넥스트트레이드
+        self.n_tr딜레이 = 0.5    # tr 요청간 딜레이
 
         # 토큰 발급
         self.s_접근토큰 = self.auth_접근토큰갱신()
-
-        # 전체종목 정보 불러오기
-        path_종목코드 = os.path.join(self.folder_전체종목,f'dic_종목코드2종목명_{self.s_오늘}.pkl')
-        self.dic_종목코드2종목명 = pd.read_pickle(path_종목코드) if os.path.exists(path_종목코드) else self.download_전체종목()
-
-        pass
 
     # noinspection PyTypeChecker
     def auth_접근토큰갱신(self):
         """ 저장된 접속토큰 갱신 후 리턴 """
         # 파일 정보 정의
-        path_접속키 = os.path.join(self.folder_기준, 'key.json')
-        path_접근토큰 = os.path.join(self.folder_기준,'token.json')
+        path_접속키 = os.path.join(self.folder_베이스, 'kiwoomKey.json')
+        path_접근토큰 = os.path.join(self.folder_베이스,'kiwoomToken.json')
 
         # 토큰 불러오기
         if os.path.exists(path_접근토큰):
-            dic_접근토큰 = json.load(open('token.json', mode='rt', encoding='utf-8'))
+            dic_접근토큰 = json.load(open(path_접근토큰, mode='rt', encoding='utf-8'))
         else:
             dic_접근토큰 = self.tr_접근토큰발급(path_접속키)
             json.dump(dic_접근토큰, open(path_접근토큰, mode='wt', encoding='utf-8'), indent=2, ensure_ascii=False)
+
+        # 정상수신 확인
+        if isinstance(dic_접근토큰, str):
+            breakpoint()
 
         # 만료여부 확인
         dt_토큰만료 = pd.Timestamp(dic_접근토큰['expires_dt'])
@@ -69,7 +67,7 @@ class RestAPIkiwoom:
         # 응답 확인
         dic_데이터 = res.json()
         if dic_데이터['return_code'] != 0:
-            return 'err_서버응답이상'
+            return f'err-{dic_데이터["return_code"]}-{dic_데이터["return_msg"]}'
 
         return dic_데이터
 
