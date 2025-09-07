@@ -8,11 +8,9 @@ import time
 # noinspection SpellCheckingInspection,NonAsciiCharacters,PyPep8Naming,PyShadowingNames,PyTypeChecker
 class RestAPIkiwoom:
     def __init__(self):
-        # 폴더 정의
+        # config 읽어 오기
         self.folder_베이스 = os.path.dirname(os.path.abspath(__file__))
         self.folder_프로젝트 = os.path.dirname(self.folder_베이스)
-
-        # config 읽어 오기
         dic_config = json.load(open(os.path.join(self.folder_프로젝트, 'config.json'), mode='rt', encoding='utf-8'))
 
         # 기준정보 정의
