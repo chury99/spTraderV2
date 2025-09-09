@@ -1,7 +1,7 @@
 import os
+import json
 import pandas as pd
 import requests
-import json
 import time
 
 
@@ -16,7 +16,7 @@ class RestAPIkiwoom:
         # 기준정보 정의
         self.s_서버구분 = dic_config['서버구분']   # 실서버, 모의서버
         self.s_거래소 = dic_config['거래소구분']    # KRX:한국거래소, NXT:넥스트트레이드
-        self.n_tr딜레이 = 0.5    # tr 요청간 딜레이
+        self.n_tr딜레이 = 0.2    # tr 요청간 딜레이 - 이용약관 제 11조 (API 호출 횟수 제한) 기준 초당 5건
 
         # 토큰 발급
         self.s_접근토큰 = self.auth_접근토큰갱신()
@@ -285,7 +285,7 @@ class RestAPIkiwoom:
             # 응답 확인
             dic_데이터 = res.json()
             if res.status_code != 200 or dic_데이터['return_code'] != 0:
-                return 'err_서버응답이상'
+                return dic_데이터['return_msg']
 
             # 데이터 정리
             s_tr아이디, s_연속조회여부, s_연속조회키 = res.headers['api-id'], res.headers['cont-yn'], res.headers['next-key']

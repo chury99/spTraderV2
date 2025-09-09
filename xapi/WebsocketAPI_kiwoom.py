@@ -1,12 +1,9 @@
 import os
+import sys
+import json
 import pandas as pd
 import asyncio
 import websockets
-import json
-
-from fcntl import FASYNC
-
-import RestAPI_kiwoom
 
 
 # noinspection SpellCheckingInspection,NonAsciiCharacters,PyPep8Naming,PyAttributeOutsideInit
@@ -27,7 +24,14 @@ class WebsocketAPIkiwoom:
         self.b_연결상태 = False
         self.b_동작중 = True
 
+        # queue 정의
+        self.queue_콘솔 = asyncio.Queue()
+        self.queue_ui = asyncio.Queue()
+        self.queue_저장 = asyncio.Queue()
+
         # 토큰 발급
+        sys.path.append(self.folder_베이스)
+        import RestAPI_kiwoom
         restapi = RestAPI_kiwoom.RestAPIkiwoom()
         self.s_접근토큰 = restapi.auth_접근토큰갱신()
 
@@ -247,44 +251,65 @@ class WebsocketAPIkiwoom:
 
         return s_서버주소
 
-    async def run_웹소켓(self):
+    async def ws_수신대기(self):
         """ 웹소켓 서버 접속 및 수신 대기 """
         await self.connent_서버()
         await self.receive_수신메세지()
 
+    async def ws_조건검색(self, s_구분, n_검색식번호):
+        """ 웹소켓 실행함수 - 조건검색에 등록해 놓은 대상종목 리스트 수신 후 리턴 """
+        # 비동기 task 등록
+        task_수신대기 = asyncio.create_task(self.ws_수신대기())
+
+        # 요청 등록 및 수신 대기
+        await asyncio.sleep(1)
+        await self.req_조건검색(s_데이터타입='요청일반', s_검색식번호=str(n_검색식번호))
+        await self.req_조건검색(s_데이터타입='요청실시간', s_검색식번호=str(n_검색식번호))
+        await task_수신대기
+
+        # 수신 데이터 가져오기
+        li_조건검색목록 = self.res조건검색_li_목록조회
+        li_대상종목 = self.res조건검색_li_요청일반 if s_구분 == '일반' else self.res조건검색_li_요청실시간 if s_구분 == '실시간' else None
+        # li_대상종목_실시간 = api.res조건검색_li_요청실시간 if s_구분 == '실시간' else None
+
+        return li_조건검색목록, li_대상종목
+
 
 # noinspection PyPep8Naming,SpellCheckingInspection,NonAsciiCharacters
-async def ws_get_조건검색(s_구분, s_검색식번호='5'):
-    """ 조건검색에 등록해 놓은 대상종목 리스트 수신 후 리턴 """
-    # 웹소켓 실행
-    api = WebsocketAPIkiwoom()
-    receive_task = asyncio.create_task(api.run_웹소켓())
-
-    # 요청 등록 및 수신 대기
-    await asyncio.sleep(1)
-    await api.req_조건검색(s_데이터타입='요청일반', s_검색식번호=s_검색식번호)
-    await api.req_조건검색(s_데이터타입='요청실시간', s_검색식번호=s_검색식번호)
-    await receive_task
-
-    # 수신 데이터 가져오기
-    li_조건검색목록 = api.res조건검색_li_목록조회
-    li_대상종목 = api.res조건검색_li_요청일반 if s_구분 == '일반' else api.res조건검색_li_요청실시간 if s_구분 == '실시간' else None
-    # li_대상종목_실시간 = api.res조건검색_li_요청실시간 if s_구분 == '실시간' else None
-
-    return li_조건검색목록, li_대상종목
+# async def ws_조건검색(s_구분, s_검색식번호):
+#     """ 웹소켓 실행함수 - 조건검색에 등록해 놓은 대상종목 리스트 수신 후 리턴 """
+#     # 웹소켓 실행
+#     api = WebsocketAPIkiwoom()
+#     task_수신대기 = asyncio.create_task(api.ws_수신대기())
+#
+#     # 요청 등록 및 수신 대기
+#     await asyncio.sleep(1)
+#     await api.req_조건검색(s_데이터타입='요청일반', s_검색식번호=s_검색식번호)
+#     await api.req_조건검색(s_데이터타입='요청실시간', s_검색식번호=s_검색식번호)
+#     await task_수신대기
+#
+#     # 수신 데이터 가져오기
+#     li_조건검색목록 = api.res조건검색_li_목록조회
+#     li_대상종목 = api.res조건검색_li_요청일반 if s_구분 == '일반' else api.res조건검색_li_요청실시간 if s_구분 == '실시간' else None
+#     # li_대상종목_실시간 = api.res조건검색_li_요청실시간 if s_구분 == '실시간' else None
+#
+#     return li_조건검색목록, li_대상종목
 
 
 # noinspection PyPep8Naming,SpellCheckingInspection,NonAsciiCharacters,PyShadowingNames
-def get_조검검색(s_구분='실시간', s_검색식번호='5'):
-    """ 조건검색에 등록된 대상종목 가져오기 => 나중에 trader로 옮길 것 """
+def get_조건검색(s_구분='실시간', n_검색식번호=5):
+    """ 조건검색에 등록된 대상종목 가져오기 => 이거를 restAPI에 넣을까? 어짜피 tr처럼 동작하는데.. """
     # 데이터 가져오기
-    li_조건검색목록, li_대상종목 = asyncio.run(ws_get_조건검색(s_구분=s_구분, s_검색식번호=s_검색식번호))
+    # li_조건검색목록, li_대상종목 = asyncio.run(ws_조건검색(s_구분=s_구분, s_검색식번호=s_검색식번호))
+    api = WebsocketAPIkiwoom()
+    li_조건검색목록, li_대상종목 = asyncio.run(api.ws_조건검색(s_구분=s_구분, n_검색식번호=n_검색식번호))
 
     # 기준정보 정의
     dic_컬럼코드 = {'9001': '종목코드', '302': '종목명', '10': '현재가', '25': '전일대비기호', '11': '전일대비', '12': '등락율',
                 '13': '누적거래량', '16': '시가', '17': '고가', '18': '저가'}
 
     # 대상종목 데이터 처리
+    dic_조검검색목록 = dict(li_조건검색목록)
     df_대상종목 = pd.DataFrame(li_대상종목)
 
     if s_구분 == '목록':
@@ -295,10 +320,11 @@ def get_조검검색(s_구분='실시간', s_검색식번호='5'):
         li_컬럼명 = [dic_컬럼코드[코드] for 코드 in df_대상종목.columns]
         df_대상종목.columns = li_컬럼명
 
-    elif s_구분 == '실시간':
+    elif s_구분 == '실시간' and len(df_대상종목) > 0:
         df_대상종목.columns = ['종목코드']
         df_대상종목['종목코드'] = df_대상종목['종목코드'].str[1:]
         df_대상종목 = df_대상종목.sort_values('종목코드').reset_index(drop=True)
+        df_대상종목['검색식'] = dic_조검검색목록[str(n_검색식번호)]
 
     return df_대상종목
 
@@ -306,7 +332,7 @@ def get_조검검색(s_구분='실시간', s_검색식번호='5'):
 async def test_웹소켓():
     # task 생성
     api = WebsocketAPIkiwoom()
-    task_수신대기 = asyncio.create_task(api.run_웹소켓())
+    task_수신대기 = asyncio.create_task(api.ws_수신대기())
 
     # 요청 등록
     await asyncio.sleep(1)
@@ -323,7 +349,8 @@ async def test_웹소켓():
 
 #######################################################################################################################
 if __name__ == '__main__':
-    # df_대상종목 = get_조검검색('목록')
+    # df_조건검색목록 = get_조건검색(s_구분='목록')
+    df_분석대상종목 = get_조건검색(s_구분='실시간', n_검색식번호='5')
     asyncio.run(test_웹소켓())
 
     api = WebsocketAPIkiwoom()
