@@ -25,8 +25,8 @@ class WebsocketAPIkiwoom:
         self.b_동작중 = True
 
         # queue 정의
-        self.queue_콘솔 = asyncio.Queue()
         self.queue_ui = asyncio.Queue()
+        self.queue_콘솔 = asyncio.Queue()
         self.queue_저장 = asyncio.Queue()
 
         # 토큰 발급
@@ -111,6 +111,10 @@ class WebsocketAPIkiwoom:
                 elif s_서비스[:4] == 'CNSR':
                     await self.proc_조건검색(res)
 
+                # 결과 처리 - SYSTEM (오류확인용)
+                elif s_서비스 == 'SYSTEM':
+                    pass
+
                 # 기타 - 오류 메세지 후 중단
                 else:
                     print(f'미등록 서비스 - {s_서비스}')
@@ -128,14 +132,10 @@ class WebsocketAPIkiwoom:
         s_서비스 = res.get('trnm')
         dic_데이터 = res.get('data')[0]
 
-        # 추가 데이터 정의
-        s_데이터타입 = dic_데이터['name']
-        s_종목코드 = dic_데이터['item']
-        dic_데이터_변동 = dic_데이터['values']
-
-        # 데이터 출력 - 0B | 주식체결
-        if s_데이터타입 == '주식체결':
-            print(dic_데이터)
+        # queue로 데이터 전달
+        await self.queue_ui.put(dic_데이터)
+        await self.queue_콘솔.put(dic_데이터)
+        await self.queue_저장.put(dic_데이터)
 
     async def proc_조건검색(self, res):
         """ CNSR | 조건검색 데이터 처리 """
@@ -258,13 +258,16 @@ class WebsocketAPIkiwoom:
 
     async def ws_조건검색(self, s_구분, n_검색식번호):
         """ 웹소켓 실행함수 - 조건검색에 등록해 놓은 대상종목 리스트 수신 후 리턴 """
-        # 비동기 task 등록
-        task_수신대기 = asyncio.create_task(self.ws_수신대기())
+        # 웹소켓 서버 접속 및 수신대기 설정
+        await self.connent_서버()
+        task_수신대기 = asyncio.create_task(self.receive_수신메세지())
 
-        # 요청 등록 및 수신 대기
+        # 요청 등록
         await asyncio.sleep(1)
         await self.req_조건검색(s_데이터타입='요청일반', s_검색식번호=str(n_검색식번호))
         await self.req_조건검색(s_데이터타입='요청실시간', s_검색식번호=str(n_검색식번호))
+
+        # 수신 대기
         await task_수신대기
 
         # 수신 데이터 가져오기
@@ -274,33 +277,27 @@ class WebsocketAPIkiwoom:
 
         return li_조건검색목록, li_대상종목
 
+    async def set_실시간등록(self, li_종목코드, li_데이터타입):
+        """ 웹소켓 서버에 접속하여 실시간등록 및 데이터 수신 대기 설정 """
+        # task 생성
+        # task_수신대기 = asyncio.create_task(self.ws_수신대기())
 
-# noinspection PyPep8Naming,SpellCheckingInspection,NonAsciiCharacters
-# async def ws_조건검색(s_구분, s_검색식번호):
-#     """ 웹소켓 실행함수 - 조건검색에 등록해 놓은 대상종목 리스트 수신 후 리턴 """
-#     # 웹소켓 실행
-#     api = WebsocketAPIkiwoom()
-#     task_수신대기 = asyncio.create_task(api.ws_수신대기())
-#
-#     # 요청 등록 및 수신 대기
-#     await asyncio.sleep(1)
-#     await api.req_조건검색(s_데이터타입='요청일반', s_검색식번호=s_검색식번호)
-#     await api.req_조건검색(s_데이터타입='요청실시간', s_검색식번호=s_검색식번호)
-#     await task_수신대기
-#
-#     # 수신 데이터 가져오기
-#     li_조건검색목록 = api.res조건검색_li_목록조회
-#     li_대상종목 = api.res조건검색_li_요청일반 if s_구분 == '일반' else api.res조건검색_li_요청실시간 if s_구분 == '실시간' else None
-#     # li_대상종목_실시간 = api.res조건검색_li_요청실시간 if s_구분 == '실시간' else None
-#
-#     return li_조건검색목록, li_대상종목
+        # 웹소켓 서버 접속
+        await self.connent_서버()
+
+        # 실시간 등록
+        await asyncio.sleep(1)
+        res = await self.req_실시간등록(li_종목코드=li_종목코드, li_데이터타입=li_데이터타입)
+
+        # 수신 대기 설정
+        task_수신대기 = asyncio.create_task(self.receive_수신메세지())
+        await task_수신대기
 
 
 # noinspection PyPep8Naming,SpellCheckingInspection,NonAsciiCharacters,PyShadowingNames
 def get_조건검색(s_구분='실시간', n_검색식번호=5):
-    """ 조건검색에 등록된 대상종목 가져오기 => 이거를 restAPI에 넣을까? 어짜피 tr처럼 동작하는데.. """
+    """ 조건검색에 등록된 대상종목 가져오기 """
     # 데이터 가져오기
-    # li_조건검색목록, li_대상종목 = asyncio.run(ws_조건검색(s_구분=s_구분, s_검색식번호=s_검색식번호))
     api = WebsocketAPIkiwoom()
     li_조건검색목록, li_대상종목 = asyncio.run(api.ws_조건검색(s_구분=s_구분, n_검색식번호=n_검색식번호))
 
@@ -329,20 +326,6 @@ def get_조건검색(s_구분='실시간', n_검색식번호=5):
     return df_대상종목
 
 # noinspection PyPep8Naming,NonAsciiCharacters,SpellCheckingInspection
-async def test_웹소켓():
-    # task 생성
-    api = WebsocketAPIkiwoom()
-    task_수신대기 = asyncio.create_task(api.ws_수신대기())
-
-    # 요청 등록
-    await asyncio.sleep(1)
-    # res = await api.req_실시간등록(li_종목코드=['468530'], li_데이터타입=['주식체결'])
-    # await api.req_조건검색(s_데이터타입='목록조회')
-    # await api.req_조건검색(s_데이터타입='요청일반', s_검색식번호='5')
-    # await api.req_조건검색(s_데이터타입='요청실시간', s_검색식번호='5')
-
-    # 수신 완료까지 대기
-    await task_수신대기
 
     pass
 
@@ -350,9 +333,25 @@ async def test_웹소켓():
 #######################################################################################################################
 if __name__ == '__main__':
     # df_조건검색목록 = get_조건검색(s_구분='목록')
-    df_분석대상종목 = get_조건검색(s_구분='실시간', n_검색식번호='5')
-    asyncio.run(test_웹소켓())
+    # df_분석대상종목 = get_조건검색(s_구분='실시간', n_검색식번호='5')
+    # asyncio.run(test_웹소켓())
+    #
+    # api = WebsocketAPIkiwoom()
+    # res = api.req_실시간등록(li_종목코드=['468530'], li_데이터타입=['주식체결'])
 
-    api = WebsocketAPIkiwoom()
-    res = api.req_실시간등록(li_종목코드=['468530'], li_데이터타입=['주식체결'])
+    # asyncio.run(set_실시간등록(li_종목코드=['000020'], li_데이터타입=['주식체결']))
+
+    # api = WebsocketAPIkiwoom()
+    # asyncio.run(api.set_실시간등록(li_종목코드=['082740'], li_데이터타입=['주식체결']))
+
+    async def add_실시간종목():
+        import collector.bot_실시간
+        c = collector.bot_실시간.Collector()
+        dic_등록 = dict(li_종목코드=['082740'], li_데이터타입=['주식체결'])
+        await c.queue_실시간등록.put(dic_등록)
+
+    asyncio.run(add_실시간종목())
+
+
+
     pass
