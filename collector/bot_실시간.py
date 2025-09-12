@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import pandas as pd
 import asyncio
@@ -14,12 +15,14 @@ class Collector:
         # config 읽어 오기
         self.folder_베이스 = os.path.dirname(os.path.abspath(__file__))
         self.folder_프로젝트 = os.path.dirname(self.folder_베이스)
+        self.s_파일명 = os.path.basename(__file__).replace('.py', '')
         dic_config = json.load(open(os.path.join(self.folder_프로젝트, 'config.json'), mode='rt', encoding='utf-8'))
 
         # 로그 설정
-        log = ut.로그maker.LogMaker(s_파일명=os.path.basename(__file__).replace('.py', ''),
-                              path_로그=os.path.join(dic_config['folder_log'], f'{dic_config['로그이름_collector']}.log'))
+        log = ut.로그maker.LogMaker(s_파일명=self.s_파일명, s_로그명='로그이름_collector')
+        sys.stderr = ut.로그maker.StderrHook(path_에러로그=log.path_에러)
         self.make_로그 = log.make_로그
+        raise ValueError
 
         # 폴더 정의
         dic_폴더정보 = ut.폴더manager.define_폴더정보()

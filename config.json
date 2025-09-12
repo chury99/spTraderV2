@@ -7,6 +7,7 @@
     "로그이름_collector" : "sp2_collector",
     "로그이름_analyzer" : "sp2_analyzer",
     "로그이름_rotator" : "sp2_analyzer",
+    "로그이름_error" : "sp2_error",
     "파일보관기간(일)_log" : "730",
     "파일보관기간(일)_analyzer" : "365",
     "파일보관기간(일)_collector" : "365",

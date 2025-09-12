@@ -1,5 +1,8 @@
 import os
+import sys
 import json
+import time
+
 import pandas as pd
 
 import ut.로그maker, ut.폴더manager, ut.도구manager as Tool
@@ -12,11 +15,12 @@ class Collector:
         # config 읽어 오기
         self.folder_베이스 = os.path.dirname(os.path.abspath(__file__))
         self.folder_프로젝트 = os.path.dirname(self.folder_베이스)
+        self.s_파일명 = os.path.basename(__file__).replace('.py', '')
         dic_config = json.load(open(os.path.join(self.folder_프로젝트, 'config.json'), mode='rt', encoding='utf-8'))
 
         # 로그 설정
-        log = ut.로그maker.LogMaker(s_파일명=os.path.basename(__file__).replace('.py', ''),
-                              path_로그=os.path.join(dic_config['folder_log'], f'{dic_config['로그이름_collector']}.log'))
+        log = ut.로그maker.LogMaker(s_파일명=self.s_파일명, s_로그명='로그이름_collector')
+        sys.stderr = ut.로그maker.StderrHook(path_에러로그=log.path_에러)
         self.make_로그 = log.make_로그
 
         # 폴더 정의
@@ -54,7 +58,7 @@ class Collector:
         Tool.df저장(df=df_전체종목, path=os.path.join(self.folder_전체종목, f'df_전체종목_{self.s_오늘}'))
 
         # 로그 기록
-        self.make_로그(f'저장 완료 - {len(df_전체종목)}개 종목')
+        self.make_로그(f'저장 완료 - {len(df_전체종목):,.0f}개 종목')
 
     def get_대상종목(self):
         """ 조건검색식에서 대상종목 다운받아서 저장 """
@@ -63,8 +67,12 @@ class Collector:
 
         # 데이터 받아오기
         df_대상종목 = api.get_조건검색(s_구분='실시간', n_검색식번호=5)
-        if len(df_대상종목) == 0:
-            df_대상종목 = api.get_조건검색(s_구분='실시간', n_검색식번호=5)
+        for i in range(5):
+            if len(df_대상종목) > 0:
+                break
+            else:
+                time.sleep(1)
+                df_대상종목 = api.get_조건검색(s_구분='실시간', n_검색식번호=5)
 
         # 데이터 정리
         df_전체종목 = pd.read_pickle(os.path.join(self.folder_전체종목, f'df_전체종목_{self.s_오늘}.pkl'))
@@ -76,7 +84,7 @@ class Collector:
         Tool.df저장(df=df_대상종목, path=os.path.join(self.folder_대상종목, f'df_대상종목_{self.s_오늘}'))
 
         # 로그 기록
-        self.make_로그(f'저장 완료 - {len(df_대상종목):,f} 종목')
+        self.make_로그(f'저장 완료 - {len(df_대상종목):,.0f} 종목')
 
 
 def run():
