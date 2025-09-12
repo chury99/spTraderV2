@@ -11,7 +11,6 @@ import ut.로그maker, ut.폴더manager, ut.도구manager as Tool
 import xapi.RestAPI_kiwoom, xapi.WebsocketAPI_kiwoom
 import collector.bot_정보수집, collector.bot_실시간
 
-
 # noinspection NonAsciiCharacters,PyPep8Naming,SpellCheckingInspection,PyUnresolvedReferences
 class LauncherCollector:
     def __init__(self):
@@ -43,7 +42,7 @@ class LauncherCollector:
         # 로그 기록
         self.make_로그(f'구동 시작')
 
-    def launcher_정보수집(self):
+    def run_정보수집(self):
         """ 정보수집 모듈 실행 """
         # 프로세스 정의 및 실행
         p_수집봇 = mp.Process(target=collector.bot_정보수집.run, name='bot_정보수집')
@@ -58,7 +57,7 @@ class LauncherCollector:
         else:
             self.send_카톡_오류발생(s_프로세스명=p_수집봇.name)
 
-    def launcher_실시간(self):
+    def run_실시간(self):
         """ 실시간 모듈 실행 - 시간 확인 후 종료 """
         # 프로세스 정의 및 실행
         p_수집봇 = mp.Process(target=collector.bot_실시간.run, name='bot_실시간')
@@ -90,11 +89,11 @@ class LauncherCollector:
         else:
             self.send_카톡_오류발생(s_프로세스명=p_수집봇.name)
 
-    def launcher_차트수집(self):
+    def run_차트수집(self):
         """ 차트수집 모듈 실행 - 실시간 모듈 종료 후 바로 진행 """
         pass
 
-    def launcher_캐시생성(self):
+    def run_캐시생성(self):
         """ 캐시생성 모듈 실행 """
         pass
 
@@ -111,10 +110,10 @@ class LauncherCollector:
 def run():
     """ 실행 함수 """
     l = LauncherCollector()
-    l.launcher_정보수집()
-    l.launcher_실시간()
-    l.launcher_차트수집()
-    l.launcher_캐시생성()
+    l.run_정보수집()
+    l.run_실시간()
+    l.run_차트수집()
+    l.run_캐시생성()
 
 
 if __name__ == '__main__':

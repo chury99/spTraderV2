@@ -22,7 +22,6 @@ class Collector:
         log = ut.로그maker.LogMaker(s_파일명=self.s_파일명, s_로그명='로그이름_collector')
         sys.stderr = ut.로그maker.StderrHook(path_에러로그=log.path_에러)
         self.make_로그 = log.make_로그
-        raise ValueError
 
         # 폴더 정의
         dic_폴더정보 = ut.폴더manager.define_폴더정보()
@@ -160,3 +159,4 @@ if __name__ == '__main__':
     # asyncio.run(c.run_실시간시세(li_종목코드=['082740'], li_데이터타입=['주식체결']))
     # asyncio.run(c.run_실시간시세(li_종목코드=['039490'], li_데이터타입=['잔고']))
     # asyncio.run(c.activate_실시간시세())
+    run()

@@ -58,7 +58,7 @@ class Collector:
         Tool.df저장(df=df_전체종목, path=os.path.join(self.folder_전체종목, f'df_전체종목_{self.s_오늘}'))
 
         # 로그 기록
-        self.make_로그(f'저장 완료 - {len(df_전체종목):,.0f}개 종목')
+        self.make_로그(f'저장 완료 - {len(df_전체종목):,.0f} 종목')
 
     def get_대상종목(self):
         """ 조건검색식에서 대상종목 다운받아서 저장 """
