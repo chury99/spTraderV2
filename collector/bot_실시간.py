@@ -17,7 +17,8 @@ class Collector:
         dic_config = json.load(open(os.path.join(self.folder_프로젝트, 'config.json'), mode='rt', encoding='utf-8'))
 
         # 로그 설정
-        log = ut.로그maker.LogMaker(os.path.join(dic_config['folder_log'], f'{dic_config['로그이름_collector']}.log'))
+        log = ut.로그maker.LogMaker(s_파일명=os.path.basename(__file__).replace('.py', ''),
+                              path_로그=os.path.join(dic_config['folder_log'], f'{dic_config['로그이름_collector']}.log'))
         self.make_로그 = log.make_로그
 
         # 폴더 정의
@@ -143,9 +144,16 @@ class Collector:
         await task_exec_저장
 
 
-if __name__ == '__main__':
+# noinspection SpellCheckingInspection
+def run():
     c = Collector()
+    asyncio.run(c.run_실시간시세(li_종목코드=['097230'], li_데이터타입=['주식체결']))
+
+
+if __name__ == '__main__':
+    pass
+    # c = Collector()
     # asyncio.run(c.run_실시간시세(li_종목코드=['097230'], li_데이터타입=['주식체결']))
     # asyncio.run(c.run_실시간시세(li_종목코드=['082740'], li_데이터타입=['주식체결']))
-    asyncio.run(c.run_실시간시세(li_종목코드=['039490'], li_데이터타입=['잔고']))
+    # asyncio.run(c.run_실시간시세(li_종목코드=['039490'], li_데이터타입=['잔고']))
     # asyncio.run(c.activate_실시간시세())

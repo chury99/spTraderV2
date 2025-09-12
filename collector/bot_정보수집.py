@@ -15,7 +15,8 @@ class Collector:
         dic_config = json.load(open(os.path.join(self.folder_프로젝트, 'config.json'), mode='rt', encoding='utf-8'))
 
         # 로그 설정
-        log = ut.로그maker.LogMaker(os.path.join(dic_config['folder_log'], f'{dic_config['로그이름_collector']}.log'))
+        log = ut.로그maker.LogMaker(s_파일명=os.path.basename(__file__).replace('.py', ''),
+                              path_로그=os.path.join(dic_config['folder_log'], f'{dic_config['로그이름_collector']}.log'))
         self.make_로그 = log.make_로그
 
         # 폴더 정의
@@ -75,10 +76,14 @@ class Collector:
         Tool.df저장(df=df_대상종목, path=os.path.join(self.folder_대상종목, f'df_대상종목_{self.s_오늘}'))
 
         # 로그 기록
-        self.make_로그(f'저장 완료 - {len(df_대상종목)}개 종목')
+        self.make_로그(f'저장 완료 - {len(df_대상종목):,f} 종목')
 
 
-if __name__ == '__main__':
+def run():
+    """ 실행 함수 """
     c = Collector()
     c.get_전체종목()
     c.get_대상종목()
+
+if __name__ == '__main__':
+    run()
