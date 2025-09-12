@@ -10,7 +10,7 @@ import xapi.WebsocketAPI_kiwoom, xapi.RestAPI_kiwoom
 
 
 # noinspection NonAsciiCharacters,SpellCheckingInspection,PyPep8Naming,PyTypeChecker
-class Collector:
+class TraderBot:
     def __init__(self):
         # config 읽어 오기
         self.folder_베이스 = os.path.dirname(os.path.abspath(__file__))
@@ -19,7 +19,7 @@ class Collector:
         dic_config = json.load(open(os.path.join(self.folder_프로젝트, 'config.json'), mode='rt', encoding='utf-8'))
 
         # 로그 설정
-        log = ut.로그maker.LogMaker(s_파일명=self.s_파일명, s_로그명='로그이름_collector')
+        log = ut.로그maker.LogMaker(s_파일명=self.s_파일명, s_로그명='로그이름_trader')
         sys.stderr = ut.로그maker.StderrHook(path_에러로그=log.path_에러)
         self.make_로그 = log.make_로그
 
@@ -205,7 +205,7 @@ class Collector:
 
 # noinspection SpellCheckingInspection
 def run():
-    c = Collector()
+    c = TraderBot()
     asyncio.run(c.run_실시간시세(li_종목코드=['097230'], li_데이터타입=['주식체결']))
 
 

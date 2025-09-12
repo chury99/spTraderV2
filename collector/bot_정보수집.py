@@ -10,7 +10,7 @@ import xapi.RestAPI_kiwoom, xapi.WebsocketAPI_kiwoom
 
 
 # noinspection NonAsciiCharacters,SpellCheckingInspection,PyPep8Naming
-class Collector:
+class CollectorBot:
     def __init__(self):
         # config 읽어 오기
         self.folder_베이스 = os.path.dirname(os.path.abspath(__file__))
@@ -89,7 +89,7 @@ class Collector:
 
 def run():
     """ 실행 함수 """
-    c = Collector()
+    c = CollectorBot()
     c.get_전체종목()
     c.get_대상종목()
 

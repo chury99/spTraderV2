@@ -5,13 +5,11 @@ import time
 
 import pandas as pd
 import multiprocessing as mp
-import asyncio
 
-import ut.로그maker, ut.폴더manager, ut.도구manager as Tool
-import xapi.RestAPI_kiwoom, xapi.WebsocketAPI_kiwoom
-import collector.bot_정보수집, collector.bot_실시간
+import ut.로그maker, ut.폴더manager
+import collector.bot_정보수집, trader.bot_실시간
 
-# noinspection NonAsciiCharacters,PyPep8Naming,SpellCheckingInspection,PyUnresolvedReferences
+# noinspection NonAsciiCharacters,PyPep8Naming,SpellCheckingInspection
 class LauncherCollector:
     def __init__(self):
         # config 읽어 오기
@@ -29,15 +27,13 @@ class LauncherCollector:
 
         # 기준정보 정의
         self.s_오늘 = pd.Timestamp.now().strftime('%Y%m%d')
-        self.path_파이썬 = dic_config['path_파이썬']
-        self.s_파일명 = os.path.basename(__file__).replace('.py', '')
         self.s_종료시각 = dic_config['종료시각_실시간']
 
         # 카카오 API 연결
         sys.path.append(dic_config['folder_kakao'])
+        # noinspection PyUnresolvedReferences
         import API_kakao
         self.kakao = API_kakao.KakaoAPI()
-
 
         # 로그 기록
         self.make_로그(f'구동 시작')
@@ -60,7 +56,7 @@ class LauncherCollector:
     def run_실시간(self):
         """ 실시간 모듈 실행 - 시간 확인 후 종료 """
         # 프로세스 정의 및 실행
-        p_수집봇 = mp.Process(target=collector.bot_실시간.run, name='bot_실시간')
+        p_수집봇 = mp.Process(target=trader.bot_실시간.run, name='bot_실시간')
         p_수집봇.start()
 
         # 시간 확인 후 종료
@@ -111,7 +107,7 @@ def run():
     """ 실행 함수 """
     l = LauncherCollector()
     l.run_정보수집()
-    l.run_실시간()
+    # l.run_실시간()
     l.run_차트수집()
     l.run_캐시생성()
 
