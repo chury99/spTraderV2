@@ -5,11 +5,11 @@ import pandas as pd
 import asyncio
 import multiprocessing as mp
 
-import ut.로그maker, ut.폴더manager
-import xapi.WebsocketAPI_kiwoom
+import ut.로그maker, ut.폴더manager, ut.도구manager
+import xapi.WebsocketAPI_kiwoom, xapi.RestAPI_kiwoom
 
 
-# noinspection NonAsciiCharacters,SpellCheckingInspection,PyPep8Naming
+# noinspection NonAsciiCharacters,SpellCheckingInspection,PyPep8Naming,PyTypeChecker
 class Collector:
     def __init__(self):
         # config 읽어 오기
@@ -26,12 +26,18 @@ class Collector:
         # 폴더 정의
         dic_폴더정보 = ut.폴더manager.define_폴더정보()
         self.folder_실시간 = dic_폴더정보['데이터|실시간']
+        self.folder_조회순위 = dic_폴더정보['데이터|조회순위']
+        self.folder_감시종목 = dic_폴더정보['데이터|감시종목']
         os.makedirs(self.folder_실시간, exist_ok=True)
+        os.makedirs(self.folder_조회순위, exist_ok=True)
+        os.makedirs(self.folder_감시종목, exist_ok=True)
 
         # api 정의
         self.api = xapi.WebsocketAPI_kiwoom.WebsocketAPIkiwoom()
+        self.rest = xapi.RestAPI_kiwoom.RestAPIkiwoom()
 
         # queue 생성
+        self.queue_조회순위 = asyncio.Queue()
         self.queue_실시간등록 = asyncio.Queue()
 
         # 기준정보 정의
@@ -45,23 +51,71 @@ class Collector:
                               순간거래대금='1313', 매도체결량단건='1315', 매수체결량단건='1316', 순매수체결량='1314', CFD증거금='1497',
                               유지증거금='1498', 당일거래평균가='620', CFD거래비용='732', 대주거래비용='852', 거래소구분='9081')
         self.dic_장구분 = {'1': '장전시간외', '2': '장중', '3': '장후시간외'}
+        self.path_감시종목 = os.path.join(self.folder_감시종목, f'li_감시종목_{self.s_오늘}.pkl')
+        self.li_감시종목 = pd.read_pickle(self.path_감시종목) if os.path.exists(self.path_감시종목) else list()
 
         # 로그 기록
         self.make_로그(f'구동 시작')
 
     async def exec_실시간등록(self):
-        """ 웹소켓 API에서 수신받은 데이터를 ui로 전달 """
+        """ tr_실시간종목조회순위 조회하여 대상종목 생성 후 실시간 등록 """
+        # 감시종목 등록 - 장중 재구동 대응
+        if len(self.li_감시종목) > 0:
+            res = await self.api.req_실시간등록(li_종목코드=self.li_감시종목, li_데이터타입=['주식체결'])
+            self.make_로그(f'총 {len(self.li_감시종목)}개 - 신규 {len(self.li_감시종목)}개 \n- {res}')
+
+        # 루프 구동
         while True:
-            # queue 확인
-            dic_등록 = await self.queue_실시간등록.get()
+            # 조회주기 설정
+            n_현재초 = int(pd.Timestamp.now().strftime('%S'))
+            if n_현재초 % 30 == 1:
+                # tr 조회 - 동기 작업을 별도 스레드에서 실행
+                # df_조회순위 = self.rest.tr_실시간종목조회순위()
+                loop = asyncio.get_running_loop()
+                df_조회순위 = await loop.run_in_executor(None, self.rest.tr_실시간종목조회순위)
+                await self.queue_조회순위.put(df_조회순위)
 
-            # 데이터 변환
-            li_종목코드 = dic_등록['li_종목코드']
-            li_데이터타입 = dic_등록['li_데이터타입']
+                # 데이터 변환
+                li_감시종목_조회 = list(df_조회순위['종목코드'])
+                li_감시종목_신규 = [종목 for 종목 in li_감시종목_조회 if 종목 not in self.li_감시종목]
 
-            # 실시간 등록
-            res = await self.api.req_실시간등록(li_종목코드=li_종목코드, li_데이터타입=li_데이터타입)
-            print(res)
+                # 실시간 등록 - 신규 감시종목 존재 시
+                res = '추가 등록 미진행'
+                if len(li_감시종목_신규) > 0:
+                    res = await self.api.req_실시간등록(li_종목코드=li_감시종목_신규, li_데이터타입=['주식체결'])
+                    self.li_감시종목 = li_감시종목_신규 + self.li_감시종목
+
+                # 로그기록
+                self.make_로그(f'총 {len(self.li_감시종목)}개 - 신규 {len(li_감시종목_신규)}개 \n- {res}')
+
+                # 구동 주기 설정
+                await asyncio.sleep(1)
+
+            # 구동시간 외 대기시간 설정 - cpu 부하 저감용
+            else:
+                await asyncio.sleep(1)
+
+
+    async def exec_조회순위저장(self):
+        """ 조회순위 조회 결과 받아서 저장 """
+        while True:
+            # queue 데이터 수신
+            df_조회순위 = await self.queue_조회순위.get()
+
+            # 추가 데이터 정리
+            s_일자 = df_조회순위['일자'].values[0]
+            s_시간 = df_조회순위['시간'].values[0].replace(':', '')
+
+            # 데이터 저장 - 파일 미존재 시
+            folder_조회순위_일자 = os.path.join(self.folder_조회순위, s_일자)
+            os.makedirs(folder_조회순위_일자, exist_ok=True)
+            path_조회순위 = os.path.join(folder_조회순위_일자, f'df_조회순위_{s_일자}_{s_시간}')
+            if not os.path.exists(path_조회순위):
+                ut.도구manager.df저장(df=df_조회순위, path=path_조회순위, li_타입=['csv'])
+
+            # li_감시종목 저장
+            pd.to_pickle(self.li_감시종목, self.path_감시종목)
+
 
     async def exec_ui(self):
         """ 웹소켓 API에서 수신받은 데이터를 ui로 전달 """
@@ -127,20 +181,23 @@ class Collector:
         # 웹소켓 서버 접속 및 수신대기 설정
         await self.api.connent_서버()
         task_수신대기 = asyncio.create_task(self.api.receive_수신메세지())
+        await asyncio.sleep(1)
 
         # 실시간 등록
-        await asyncio.sleep(1)
-        res = await self.api.req_실시간등록(li_종목코드=li_종목코드, li_데이터타입=li_데이터타입)
+        # res = await self.api.req_실시간등록(li_종목코드=li_종목코드, li_데이터타입=li_데이터타입)
         # task_exec_실시간등록 = asyncio.create_task(self.exec_실시간등록())
 
         # exec 함수 task 지정
+        task_exec_실시간등록 = asyncio.create_task(self.exec_실시간등록())
+        task_exec_조회순위저장 = asyncio.create_task(self.exec_조회순위저장())
         task_exec_ui = asyncio.create_task(self.exec_ui())
         task_exec_콘솔 = asyncio.create_task(self.exec_콘솔())
         task_exec_저장 = asyncio.create_task(self.exec_저장())
 
         # task 활성화
         await task_수신대기
-        # await task_exec_실시간등록
+        await task_exec_실시간등록
+        await task_exec_조회순위저장
         await task_exec_ui
         await task_exec_콘솔
         await task_exec_저장
@@ -153,10 +210,4 @@ def run():
 
 
 if __name__ == '__main__':
-    pass
-    # c = Collector()
-    # asyncio.run(c.run_실시간시세(li_종목코드=['097230'], li_데이터타입=['주식체결']))
-    # asyncio.run(c.run_실시간시세(li_종목코드=['082740'], li_데이터타입=['주식체결']))
-    # asyncio.run(c.run_실시간시세(li_종목코드=['039490'], li_데이터타입=['잔고']))
-    # asyncio.run(c.activate_실시간시세())
     run()

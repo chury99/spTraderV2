@@ -34,7 +34,7 @@ class LogMaker:
         if '콘솔' in li_출력:
             print(s_로그)
         if '파일' in li_출력:
-            with open(self.path_로그, mode='at', encoding='cp949') as f:
+            with open(self.path_로그, mode='at', encoding='utf-8') as f:
                 f.write(f'{s_로그}\n')
 
 

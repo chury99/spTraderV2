@@ -344,13 +344,13 @@ if __name__ == '__main__':
     # api = WebsocketAPIkiwoom()
     # asyncio.run(api.set_실시간등록(li_종목코드=['082740'], li_데이터타입=['주식체결']))
 
-    async def add_실시간종목():
-        import collector.bot_실시간
-        c = collector.bot_실시간.Collector()
-        dic_등록 = dict(li_종목코드=['082740'], li_데이터타입=['주식체결'])
-        await c.queue_실시간등록.put(dic_등록)
-
-    asyncio.run(add_실시간종목())
+    # async def add_실시간종목():
+    #     import collector.bot_실시간
+    #     c = collector.bot_실시간.Collector()
+    #     dic_등록 = dict(li_종목코드=['082740'], li_데이터타입=['주식체결'])
+    #     await c.queue_실시간등록.put(dic_등록)
+    #
+    # asyncio.run(add_실시간종목())
 
 
 
