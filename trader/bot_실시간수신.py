@@ -89,15 +89,15 @@ class TraderBot:
             self.make_로그(f'총 {len(self.li_감시종목)}개 - 신규 {len(self.li_감시종목)}개 \n- {res}')
 
         # 루프 구동
-        loop = asyncio.get_running_loop()
         while True:
             # 조회주기 설정
             n_현재초 = int(pd.Timestamp.now().strftime('%S'))
             if n_현재초 % 30 == 1:
                 # tr 조회 - 동기 작업을 별도 스레드에서 실행
                 # df_조회순위 = self.rest.tr_실시간종목조회순위()
+                loop = asyncio.get_running_loop()
                 df_조회순위 = await loop.run_in_executor(None, self.rest.tr_실시간종목조회순위)
-                await self.queue_조회순위.put(df_조회순위)
+                # await self.queue_조회순위.put(df_조회순위)
 
                 # 데이터 변환
                 li_감시종목_조회 = list(df_조회순위['종목코드'])
@@ -110,6 +110,12 @@ class TraderBot:
                     self.li_감시종목 = li_감시종목_신규 + self.li_감시종목
                     self.li_감시종목 = self.li_감시종목[:100]
 
+                # 데이터 저장
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, self._조회순위저장, df_조회순위)
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, pd.to_pickle, self.li_감시종목, self.path_감시종목)
+
                 # 로그기록
                 self.make_로그(f'총 {len(self.li_감시종목)}개 - 신규 {len(li_감시종목_신규)}개 \n- {res}')
 
@@ -120,15 +126,15 @@ class TraderBot:
             else:
                 await asyncio.sleep(0.1)
 
-    async def exec_조회순위저장(self):
-        """ 조회순위 조회 결과 받아서 저장 """
-        loop = asyncio.get_running_loop()
-        while True:
-            # queue 데이터 수신
-            df_조회순위 = await self.queue_조회순위.get()
-
-            # 조회순위 데이터 처리 및 저장 - 동기 작업을 별도 스레드에서 실행
-            await loop.run_in_executor(None, self._조회순위저장, df_조회순위)
+    # async def exec_조회순위저장(self):
+    #     """ 조회순위 조회 결과 받아서 저장 """
+    #     loop = asyncio.get_running_loop()
+    #     while True:
+    #         # queue 데이터 수신
+    #         df_조회순위 = await self.queue_조회순위.get()
+    #
+    #         # 조회순위 데이터 처리 및 저장 - 동기 작업을 별도 스레드에서 실행
+    #         await loop.run_in_executor(None, self._조회순위저장, df_조회순위)
 
             # 오류 방지용
             # await asyncio.sleep(1)
@@ -163,9 +169,6 @@ class TraderBot:
         s_데이터 = s_조회순위 if os.path.exists(path_조회순위) else s_컬럼명 + s_조회순위
         with open(path_조회순위, mode='at', encoding='cp949') as f:
             f.write(s_데이터)
-
-        # li_감시종목 저장
-        pd.to_pickle(self.li_감시종목, self.path_감시종목)
 
     async def exec_ui(self):
         """ 웹소켓 API에서 수신받은 데이터를 ui로 전달 """
@@ -228,20 +231,14 @@ class TraderBot:
 
         # exec 함수 task 지정
         task_exec_실시간등록 = asyncio.create_task(self.exec_실시간등록())
-        task_exec_조회순위저장 = asyncio.create_task(self.exec_조회순위저장())
+        # task_exec_조회순위저장 = asyncio.create_task(self.exec_조회순위저장())
         task_exec_ui = asyncio.create_task(self.exec_ui())
         task_exec_콘솔 = asyncio.create_task(self.exec_콘솔())
         task_exec_저장 = asyncio.create_task(self.exec_저장())
 
         # task 활성화
-        # await task_수신대기
-        # await task_exec_실시간등록
-        # await task_exec_조회순위저장
-        # await task_exec_ui
-        # await task_exec_콘솔
-        # await task_exec_저장
         await asyncio.gather(task_수신대기,
-                             task_exec_실시간등록, task_exec_조회순위저장,
+                             task_exec_실시간등록,
                              task_exec_ui, task_exec_콘솔, task_exec_저장)
 
 

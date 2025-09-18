@@ -62,8 +62,8 @@ class LauncherTrader:
             b_동작중 = True
 
             # 종료시간 이후라면 프로세스 종료
-            # if pd.Timestamp.now() > pd.Timestamp(self.s_종료시각):
-            if pd.Timestamp.now() > pd.Timestamp('18:00:00'):
+            if pd.Timestamp.now() > pd.Timestamp(self.s_종료시각):
+            # if pd.Timestamp.now() > pd.Timestamp('18:00:00'):
                 for p_봇 in li_프로세스:
                     if p_봇.is_alive():
                         p_봇.terminate()
