@@ -7,7 +7,7 @@ import pandas as pd
 import multiprocessing as mp
 
 import ut.로그maker, ut.폴더manager
-import trader.bot_트레이딩, trader.bot_화면관리, trader.bot_실시간수집, trader.bot_실시간저장
+import trader.bot_트레이딩, trader.bot_화면관리, trader.bot_실시간수신, trader.bot_실시간저장
 
 
 # noinspection NonAsciiCharacters,PyPep8Naming,SpellCheckingInspection,PyUnreachableCode
@@ -48,9 +48,9 @@ class LauncherTrader:
         # 프로세스 정의
         # p_트레이딩 = mp.Process(target=trader.bot_트레이딩.run, name='bot_트레이딩')
         # p_화면관리 = mp.Process(target=trader.bot_화면관리.run, name='bot_화면관리')
-        p_실시간수집 = mp.Process(target=trader.bot_실시간수집.run, args=(queue_mp_실시간저장,), name='bot_실시간수집')
+        p_실시간수신 = mp.Process(target=trader.bot_실시간수신.run, args=(queue_mp_실시간저장,), name='bot_실시간수신')
         p_실시간저장 = mp.Process(target=trader.bot_실시간저장.run, args=(queue_mp_실시간저장,), name='bot_실시간저장')
-        li_프로세스 = [p_실시간수집, p_실시간저장]
+        li_프로세스 = [p_실시간수신, p_실시간저장]
 
         # 프로세스 실행
         for p_봇 in li_프로세스:
@@ -62,8 +62,8 @@ class LauncherTrader:
             b_동작중 = True
 
             # 종료시간 이후라면 프로세스 종료
-            if pd.Timestamp.now() > pd.Timestamp(self.s_종료시각):
-            # if pd.Timestamp.now() > pd.Timestamp('18:00:00'):
+            # if pd.Timestamp.now() > pd.Timestamp(self.s_종료시각):
+            if pd.Timestamp.now() > pd.Timestamp('18:00:00'):
                 for p_봇 in li_프로세스:
                     if p_봇.is_alive():
                         p_봇.terminate()

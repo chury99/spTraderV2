@@ -73,6 +73,7 @@ class CollectorBot:
             else:
                 time.sleep(1)
                 df_대상종목 = api.get_조건검색(s_구분='실시간', n_검색식번호=5)
+                df_대상종목 = api.get_조건검색(s_구분='실시간', n_검색식번호=5)
 
         # 데이터 정리
         df_전체종목 = pd.read_pickle(os.path.join(self.folder_전체종목, f'df_전체종목_{self.s_오늘}.pkl'))

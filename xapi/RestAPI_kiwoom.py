@@ -264,7 +264,10 @@ class RestAPIkiwoom:
             df_실시간조회순위['기준가대비부호'] = df_데이터['base_comp_sign'].astype(int)
             df_실시간조회순위['기준가대비등락률'] = df_데이터['base_comp_chgr'].astype(float)
             df_실시간조회순위['직전기준대비부호'] = df_데이터['prev_base_sign'].astype(int)
-            df_실시간조회순위['직전기준대비등락률'] = df_데이터['prev_base_chgr'].astype(float)
+            try:
+                df_실시간조회순위['직전기준대비등락률'] = df_데이터['prev_base_chgr'].astype(float)
+            except:
+                pass
 
         return df_실시간조회순위
 

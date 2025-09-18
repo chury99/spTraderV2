@@ -1,6 +1,8 @@
 import os
 import sys
 import json
+import time
+
 import pandas as pd
 import asyncio
 import multiprocessing as mp
@@ -87,13 +89,13 @@ class TraderBot:
             self.make_로그(f'총 {len(self.li_감시종목)}개 - 신규 {len(self.li_감시종목)}개 \n- {res}')
 
         # 루프 구동
+        loop = asyncio.get_running_loop()
         while True:
             # 조회주기 설정
             n_현재초 = int(pd.Timestamp.now().strftime('%S'))
             if n_현재초 % 30 == 1:
                 # tr 조회 - 동기 작업을 별도 스레드에서 실행
                 # df_조회순위 = self.rest.tr_실시간종목조회순위()
-                loop = asyncio.get_running_loop()
                 df_조회순위 = await loop.run_in_executor(None, self.rest.tr_실시간종목조회순위)
                 await self.queue_조회순위.put(df_조회순위)
 
@@ -101,17 +103,18 @@ class TraderBot:
                 li_감시종목_조회 = list(df_조회순위['종목코드'])
                 li_감시종목_신규 = [종목 for 종목 in li_감시종목_조회 if 종목 not in self.li_감시종목]
 
-                # 실시간 등록 - 신규 감시종목 존재 시
+                # 실시간 등록 - 신규 감시종목 존재 시 - 100개 한정
                 res = '추가 등록 미진행'
                 if len(li_감시종목_신규) > 0:
                     res = await self.api.req_실시간등록(li_종목코드=li_감시종목_신규, li_데이터타입=['주식체결'])
                     self.li_감시종목 = li_감시종목_신규 + self.li_감시종목
+                    self.li_감시종목 = self.li_감시종목[:100]
 
                 # 로그기록
                 self.make_로그(f'총 {len(self.li_감시종목)}개 - 신규 {len(li_감시종목_신규)}개 \n- {res}')
 
                 # 구동 주기 설정
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(1)
 
             # 구동시간 외 대기시간 설정 - cpu 부하 저감용
             else:
@@ -124,21 +127,42 @@ class TraderBot:
             # queue 데이터 수신
             df_조회순위 = await self.queue_조회순위.get()
 
-            # [핵심 수정] 모든 파일 I/O 작업은 동기(blocking) 함수이므로, 별도 스레드에서 실행하여 이벤트 루프 차단 방지
-            await loop.run_in_executor(None, self.save_조회순위_sync, df_조회순위)
+            # 조회순위 데이터 처리 및 저장 - 동기 작업을 별도 스레드에서 실행
+            await loop.run_in_executor(None, self._조회순위저장, df_조회순위)
 
-    def save_조회순위_sync(self, df_조회순위):
+            # 오류 방지용
+            # await asyncio.sleep(1)
+
+    def _조회순위저장(self, df_조회순위):
         """ 'exec_조회순위저장'의 동기 파일 I/O 작업을 별도로 분리 """
-        # 추가 데이터 정리
+        # 기준 데이터 정의
         s_일자 = df_조회순위['일자'].values[0]
-        s_시간 = df_조회순위['시간'].values[0].replace(':', '')
+        # s_시간 = df_조회순위['시간'].values[0].replace(':', '')
+        s_시간 = df_조회순위['시간'].values[0]
+        path_조회순위 = os.path.join(self.folder_조회순위, f'df_조회순위_{s_일자}.csv')
 
-        # 데이터 저장 - 파일 미존재 시
-        folder_조회순위_일자 = os.path.join(self.folder_조회순위, s_일자)
-        os.makedirs(folder_조회순위_일자, exist_ok=True)
-        path_조회순위 = os.path.join(folder_조회순위_일자, f'df_조회순위_{s_일자}_{s_시간}')
-        if not os.path.exists(path_조회순위):
-            ut.도구manager.df저장(df=df_조회순위, path=path_조회순위, li_타입=['csv'])
+        # # 데이터 저장 - 파일 미존재 시
+        # folder_조회순위_일자 = os.path.join(self.folder_조회순위, s_일자)
+        # os.makedirs(folder_조회순위_일자, exist_ok=True)
+        # path_조회순위 = os.path.join(folder_조회순위_일자, f'df_조회순위_{s_일자}_{s_시간}')
+        # if not os.path.exists(path_조회순위):
+        #     ut.도구manager.df저장(df=df_조회순위, path=path_조회순위, li_타입=['csv'])
+
+        # 기존 데이터에 동일 시간 존재 시 종료
+        s_기존데이터 = open(path_조회순위, mode='rt', encoding='cp949').read() if os.path.exists(path_조회순위) else ''
+        if s_시간 in s_기존데이터:
+            return
+
+        # df를 문자열로 변환
+        li_조회순위 = [','.join(ary) for ary in df_조회순위.values.astype(str)]
+        s_조회순위 = '\n'.join(li_조회순위) + '\n'
+        s_컬럼명 = ','.join(df_조회순위.columns) + '\n'
+
+
+        # 데이터 저장 - 한 파일로 통합
+        s_데이터 = s_조회순위 if os.path.exists(path_조회순위) else s_컬럼명 + s_조회순위
+        with open(path_조회순위, mode='at', encoding='cp949') as f:
+            f.write(s_데이터)
 
         # li_감시종목 저장
         pd.to_pickle(self.li_감시종목, self.path_감시종목)
@@ -147,30 +171,35 @@ class TraderBot:
         """ 웹소켓 API에서 수신받은 데이터를 ui로 전달 """
         while True:
             # queue 데이터 수신
-            dic_데이터 = await self.api.queue_ui.get()
+            li_데이터 = await self.api.queue_ui.get()
 
-            # 추가 데이터 정의
-            s_데이터타입 = dic_데이터['name']
-            s_종목코드 = dic_데이터['item']
-            dic_데이터_변동 = dic_데이터['values']
+            # 데이터 순차 처리
+            for dic_데이터 in li_데이터:
+                s_데이터타입 = dic_데이터['name']
+                s_종목코드 = dic_데이터['item']
+                dic_데이터_변동 = dic_데이터['values']
 
             # 데이터 전달
-            # print(f'ui - {dic_데이터}')
+            # print(f'ui - {li_데이터}')
             pass
 
     async def exec_콘솔(self):
         """ 웹소켓 API에서 수신받은 데이터를 콘솔에 출력 """
         while True:
             # queue 데이터 수신
-            dic_데이터 = await self.api.queue_콘솔.get()
+            li_데이터 = await self.api.queue_콘솔.get()
 
-            # 추가 데이터 정의
-            s_데이터타입 = dic_데이터['name']
-            s_종목코드 = dic_데이터['item']
-            dic_데이터_변동 = dic_데이터['values']
+            # 데이터 순차 처리
+            for dic_데이터 in li_데이터:
+                s_데이터타입 = dic_데이터['name']
+                s_종목코드 = dic_데이터['item']
+                dic_데이터_변동 = dic_데이터['values']
+
+                # 데이터 출력
+                print(f'{len(li_데이터)}개 수신 - {s_데이터타입} - {s_종목코드}|{dic_데이터_변동}')
 
             # 데이터 출력
-            # print(f'{s_데이터타입} - {s_종목코드}|{dic_데이터}')
+            # print(f'{s_데이터타입} - {s_종목코드}|{li_데이터}')
             # print(f'{s_데이터타입} - {s_종목코드}')
 
     async def exec_저장(self):

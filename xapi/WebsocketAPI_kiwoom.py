@@ -6,8 +6,19 @@ import asyncio
 import websockets
 
 
+_instance = None
+
+# noinspection SpellCheckingInspection
+def get_instance():
+    """ 싱글턴 인스턴스 반환 - 큐 중복생성 방지 """
+    global _instance
+    _instance = WebsocketAPIkiwoom() if _instance is None else _instance
+    return _instance
+
 # noinspection SpellCheckingInspection,NonAsciiCharacters,PyPep8Naming,PyAttributeOutsideInit
 class WebsocketAPIkiwoom:
+    _instance = None
+
     def __init__(self):
         # config 읽어 오기
         self.folder_베이스 = os.path.dirname(os.path.abspath(__file__))
@@ -121,7 +132,7 @@ class WebsocketAPIkiwoom:
                     await self.disconnect_서버()
 
             except websockets.ConnectionClosed:
-                print('서버에 의한 종료')
+                # print('서버에 의한 종료')
                 self.b_연결상태 = False
                 self.b_동작중 = False
                 await self.websocket.close()
@@ -130,12 +141,12 @@ class WebsocketAPIkiwoom:
         """ REAL | 실시간시세 데이터 처리 """
         # 수신 데이터 변환
         s_서비스 = res.get('trnm')
-        dic_데이터 = res.get('data')[0]
+        li_데이터 = res.get('data')
 
         # queue로 데이터 전달
-        await self.queue_ui.put(dic_데이터)
-        await self.queue_콘솔.put(dic_데이터)
-        await self.queue_저장.put(dic_데이터)
+        await self.queue_ui.put(li_데이터)
+        await self.queue_콘솔.put(li_데이터)
+        await self.queue_저장.put(li_데이터)
 
     async def proc_조건검색(self, res):
         """ CNSR | 조건검색 데이터 처리 """
@@ -298,7 +309,8 @@ class WebsocketAPIkiwoom:
 def get_조건검색(s_구분='실시간', n_검색식번호=5):
     """ 조건검색에 등록된 대상종목 가져오기 """
     # 데이터 가져오기
-    api = WebsocketAPIkiwoom()
+    # api = WebsocketAPIkiwoom()
+    api = get_instance()
     li_조건검색목록, li_대상종목 = asyncio.run(api.ws_조건검색(s_구분=s_구분, n_검색식번호=n_검색식번호))
 
     # 기준정보 정의
