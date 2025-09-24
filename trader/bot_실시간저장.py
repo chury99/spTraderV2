@@ -33,13 +33,7 @@ class TraderBot:
         self.folder_실시간 = dic_폴더정보['데이터|실시간']
         os.makedirs(self.folder_실시간, exist_ok=True)
 
-        # api 정의
-        # self.api = xapi.WebsocketAPI_kiwoom.WebsocketAPIkiwoom()
-        # self.rest = xapi.RestAPI_kiwoom.RestAPIkiwoom()
-
         # queue 생성
-        # self.queue_조회순위 = asyncio.Queue()
-        # self.queue_실시간등록 = asyncio.Queue()
         self.queue_mp_실시간저장 = queue_mp_실시간저장
 
         # 기준정보 정의
@@ -80,7 +74,7 @@ class TraderBot:
     def exec_실시간저장(self):
         """ 웹소켓 API에서 수신받은 데이터를 저장 """
         # 기준정보 정의
-        n_배치_크기 = 100
+        n_배치_크기 = 500
         li_데이터_배치 = list()
         path_주식체결 = os.path.join(self.folder_실시간, f'주식체결_{self.s_오늘}.csv')
         li_컬럼명 = ['체결시간', '현재가', '등락율', '거래량', '누적거래량', '누적거래대금', '시가', '고가', '저가', '체결강도',
@@ -96,10 +90,7 @@ class TraderBot:
         while True:
             li_수신데이터 = list()
             try:
-                # # 첫 데이터 수신 - 큐가 비었으면 여기서 대기
-                # li_수신데이터 = self.queue_mp_실시간저장.get()
-
-                # 큐가 빌 때까지 나머지 데이터 모두 수신
+                # 데이터 수신
                 while True:
                     li_수신데이터 = li_수신데이터 + self.queue_mp_실시간저장.get_nowait()
             except _queue.Empty:

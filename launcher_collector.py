@@ -51,7 +51,7 @@ class LauncherCollector:
         if p_수집봇.exitcode <= 0:
             self.make_로그(f'{p_수집봇.name} 구동 완료')
         else:
-            self.send_카톡_오류발생(s_프로세스명=p_수집봇.name)
+            self.send_카톡_오류발생(s_프로세스명=p_수집봇.name, n_오류코드=p_수집봇.exitcode)
 
     def run_차트수집(self):
         """ 차트수집 모듈 실행 - 실시간 모듈 종료 후 바로 진행 """
@@ -61,11 +61,11 @@ class LauncherCollector:
         """ 캐시생성 모듈 실행 """
         pass
 
-    def send_카톡_오류발생(self, s_프로세스명):
+    def send_카톡_오류발생(self, s_프로세스명, n_오류코드):
         """ 실행 오류 발생 시 프로세스명 포함하여 카톡 메세지 송부 """
         # 메세지 정의
         s_메세지 = (f'!!! [{self.s_파일명}] !!!\n'
-                 f'모듈 실행 중 오류 발생 - {s_프로세스명}')
+                 f'오류 발생 - {s_프로세스명} | {n_오류코드}')
 
         # 메세지 송부
         self.kakao.send_메세지(s_사용자='알림봇', s_수신인='여봉이', s_메세지=s_메세지)

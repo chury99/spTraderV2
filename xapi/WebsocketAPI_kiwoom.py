@@ -109,9 +109,9 @@ class WebsocketAPIkiwoom:
                         await self.send_요청메세지(dic_바디=dict(trnm='CNSRLST'))
 
                 # 결과 처리 - REG (등록: 실패 시 메세지 출력)
-                elif s_서비스 == 'REG':
+                elif s_서비스 in ['REG', 'REMOVE']:
                     if s_리턴코드 != 0:
-                        print(f'종목등록 실패 - {res.get('return_msg')}')
+                        print(f'종목등록/해지 실패 - {s_서비스} - {res.get('return_msg')}')
                         await self.disconnect_서버()
 
                 # 결과 처리 - REAL (실시간시세 - 데이터 처리 함수 호출)
@@ -189,7 +189,7 @@ class WebsocketAPIkiwoom:
 
         pass
 
-    async def req_실시간등록(self, li_종목코드, li_데이터타입, s_기존유지=True):
+    async def req_실시간등록(self, li_종목코드, li_데이터타입, b_기존유지=True, b_등록해지=False):
         """ 실시간시세 조회를 위한 종목코드 및 데이터타입 등록 요청 (주문체결은 미등록시에도 자동 수신) """
         # 기준정보 정의
         dic_데이터타입 = dict(주문체결='00', 잔고='04', 주식기세='0A', 주식체결='0B', 주식우선호가='0C', 주식호가잔량='0D',
@@ -198,11 +198,13 @@ class WebsocketAPIkiwoom:
 
         # 변수 재정의
         li_데이터타입_코드 = [dic_데이터타입[타입] for 타입 in li_데이터타입]
-        s_기존유지 = '1' if s_기존유지 else '0'
+        s_기존유지 = '1' if b_기존유지 else '0'
 
         # 등록 요청
         li_데이터 = [dict(item=li_종목코드, type=li_데이터타입_코드)]
         dic_바디 = dict(trnm='REG', grp_no='1', refresh=s_기존유지, data=li_데이터)
+        if b_등록해지:
+            dic_바디 = dict(trnm='REMOVE', grp_no='1', refresh=s_기존유지, data=li_데이터)
         await self.send_요청메세지(dic_바디=dic_바디)
 
         # 리턴 메세지 생성
