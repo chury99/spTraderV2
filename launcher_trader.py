@@ -75,10 +75,10 @@ class LauncherTrader:
                     if not p_봇.is_alive():
                         # 종료코드 1 이면 재실행 - 오류로 인한 종료
                         if p_봇.exitcode == 1:
-                            # p_봇.terminate()
+                            self.kakao.send_메세지(s_사용자='알림봇', s_수신인='여봉이', s_메세지=f'{p_봇.name} 모듈 재시작')
+                            p_봇.terminate()
                             p_봇.join()
                             p_봇.start()
-                            self.kakao.send_메세지(s_사용자='알림봇', s_수신인='여봉이', s_메세지=f'{p_봇.name} 모듈 재시작')
                         # 이외 경우 오류 알림
                         else:
                             self.send_카톡_오류발생(s_프로세스명=p_봇.name, n_오류코드=p_봇.exitcode)

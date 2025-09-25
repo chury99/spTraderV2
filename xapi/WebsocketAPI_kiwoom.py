@@ -208,7 +208,7 @@ class WebsocketAPIkiwoom:
         await self.send_요청메세지(dic_바디=dic_바디)
 
         # 리턴 메세지 생성
-        s_리턴메세지 = f'실시간등록 요청 완료 - {li_데이터}'
+        s_리턴메세지 = f'등록요청 - {li_데이터}'
 
         return s_리턴메세지
 

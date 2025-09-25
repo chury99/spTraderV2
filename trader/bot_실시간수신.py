@@ -104,34 +104,50 @@ class TraderBot:
                 s_데이터초 = str(n_현재초)
 
                 # 데이터 변환
-                # li_감시종목_조회 = list(df_조회순위['종목코드'])
                 li_감시종목_조회 = [종목 for 종목 in df_조회순위['종목코드'] if 종목 != '']
-                li_감시종목_신규 = [종목 for 종목 in li_감시종목_조회 if 종목 not in self.li_감시종목]
+                li_감시종목_이전 = [종목 for 종목 in self.li_감시종목 if 종목 not in li_감시종목_조회]
+                li_감시종목_전체 = li_감시종목_조회 + li_감시종목_이전
+                li_감시종목_신규 = li_감시종목_전체[:100]
+                li_감시종목_추가 = [종목 for 종목 in li_감시종목_조회 if 종목 not in self.li_감시종목]
+                li_감시종목_해지 = [종목 for 종목 in li_감시종목_전체 if 종목 not in li_감시종목_신규]
 
-                # 변수 생성
-                li_감시종목_해지 = list()
+                # 100개 초과 시 종목 해지 및 등록
                 res_해지 = None
                 res_등록 = None
+                if len(li_감시종목_전체) != len(li_감시종목_신규):
+                    res_해지 = await self.api.req_실시간등록(li_종목코드=li_감시종목_해지, li_데이터타입=['주식체결'], b_등록해지=True)
+                    res_등록 = await self.api.req_실시간등록(li_종목코드=li_감시종목_추가, li_데이터타입=['주식체결'])
+                    self.li_감시종목 = li_감시종목_신규
 
-                # 실시간 등록 - 신규 감시종목 존재 시 - 100개 한정
-                res = '추가 등록 미진행'
-                if len(li_감시종목_신규) > 0:
-                    n_감시종목_기존 = len(self.li_감시종목)
-                    n_감시종목_신규 = len(li_감시종목_신규)
-                    n_감시종목_전체 = n_감시종목_기존 + n_감시종목_신규
 
-                    # 100개 초과 시 제외
-                    if n_감시종목_전체 > 100:
-                        n_감시종목_해지 = n_감시종목_전체 - 100
-                        n_해지인덱스 = -1 * n_감시종목_해지
-                        li_감시종목_해지 = self.li_감시종목[n_해지인덱스:]
-                        res_해지 = await self.api.req_실시간등록(li_종목코드=li_감시종목_해지, li_데이터타입=['주식체결'], b_등록해지=True)
-                        self.li_감시종목 = self.li_감시종목[:n_해지인덱스]
-
-                    # 신규 감지종목 등록
-                    res_등록 = await self.api.req_실시간등록(li_종목코드=li_감시종목_신규, li_데이터타입=['주식체결'])
-                    self.li_감시종목 = li_감시종목_신규 + self.li_감시종목
-                    # self.li_감시종목 = self.li_감시종목[:100]
+                # # 데이터 변환
+                # li_감시종목_조회 = [종목 for 종목 in df_조회순위['종목코드'] if 종목 != '']
+                # li_감시종목_신규 = [종목 for 종목 in li_감시종목_조회 if 종목 not in self.li_감시종목]
+                #
+                # # 변수 생성
+                # li_감시종목_해지 = list()
+                # res_해지 = None
+                # res_등록 = None
+                #
+                # # 실시간 등록 - 신규 감시종목 존재 시 - 100개 한정
+                # res = '추가 등록 미진행'
+                # if len(li_감시종목_신규) > 0:
+                #     n_감시종목_기존 = len(self.li_감시종목)
+                #     n_감시종목_신규 = len(li_감시종목_신규)
+                #     n_감시종목_전체 = n_감시종목_기존 + n_감시종목_신규
+                #
+                #     # 100개 초과 시 제외
+                #     if n_감시종목_전체 > 100:
+                #         n_감시종목_해지 = n_감시종목_전체 - 100
+                #         n_해지인덱스 = -1 * n_감시종목_해지
+                #         li_감시종목_해지 = self.li_감시종목[n_해지인덱스:]
+                #         res_해지 = await self.api.req_실시간등록(li_종목코드=li_감시종목_해지, li_데이터타입=['주식체결'], b_등록해지=True)
+                #         self.li_감시종목 = self.li_감시종목[:n_해지인덱스]
+                #
+                #     # 신규 감지종목 등록
+                #     res_등록 = await self.api.req_실시간등록(li_종목코드=li_감시종목_신규, li_데이터타입=['주식체결'])
+                #     self.li_감시종목 = li_감시종목_신규 + self.li_감시종목
+                #     # self.li_감시종목 = self.li_감시종목[:100]
 
                 # 데이터 저장
                 loop = asyncio.get_running_loop()
@@ -142,7 +158,7 @@ class TraderBot:
                 # 로그기록
                 self.make_로그(f'총{len(self.li_감시종목)} 종목\n'
                              f'해지 {len(li_감시종목_해지)} 종목 - {res_해지}\n'
-                             f'등록 {len(li_감시종목_신규)} 종목 - {res_등록}')
+                             f'등록 {len(li_감시종목_추가)} 종목 - {res_등록}')
 
                 # 구동 주기 설정
                 await asyncio.sleep(0.1)
