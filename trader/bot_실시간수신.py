@@ -112,12 +112,14 @@ class TraderBot:
                 li_감시종목_해지 = [종목 for 종목 in li_감시종목_전체 if 종목 not in li_감시종목_신규]
 
                 # 100개 초과 시 종목 해지 및 등록
-                res_해지 = None
-                res_등록 = None
-                if len(li_감시종목_전체) != len(li_감시종목_신규):
-                    res_해지 = await self.api.req_실시간등록(li_종목코드=li_감시종목_해지, li_데이터타입=['주식체결'], b_등록해지=True)
-                    res_등록 = await self.api.req_실시간등록(li_종목코드=li_감시종목_추가, li_데이터타입=['주식체결'])
-                    self.li_감시종목 = li_감시종목_신규
+                # res_해지 = None
+                # res_등록 = None
+                # if len(li_감시종목_전체) != len(li_감시종목_신규):
+                res_해지 = await self.api.req_실시간등록(li_종목코드=li_감시종목_해지, li_데이터타입=['주식체결'], b_등록해지=True)\
+                            if len(li_감시종목_해지) > 0 else None
+                res_등록 = await self.api.req_실시간등록(li_종목코드=li_감시종목_추가, li_데이터타입=['주식체결'])\
+                            if len(li_감시종목_추가) > 0 else None
+                self.li_감시종목 = li_감시종목_신규
 
 
                 # # 데이터 변환
