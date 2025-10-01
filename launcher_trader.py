@@ -30,7 +30,7 @@ class LauncherTrader:
 
         # 기준정보 정의
         self.s_오늘 = pd.Timestamp.now().strftime('%Y%m%d')
-        self.s_종료시각 = dic_config['종료시각_트레이더']
+        self.s_종료시각 = dic_config['종료시각']
 
         # 카카오 API 연결
         sys.path.append(dic_config['folder_kakao'])

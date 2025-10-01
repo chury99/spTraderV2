@@ -77,7 +77,7 @@ class CollectorBot:
         df_대상종목['종목코드'] = df_대상종목['종목코드'].str[1:]
         df_대상종목['종목명'] = df_대상종목['종목코드'].apply(lambda x: dic_코드2종목명[x] if x in dic_코드2종목명 else None)
         df_대상종목['검색식'] = df_조검검색목록.set_index('검색식번호')['검색식명'].to_dict()[str(n_검색식번호)]
-        df_대상종목 = df_대상종목.sort_values('종목코드').reset_index(drop=True)
+        df_대상종목 = df_대상종목[df_대상종목['종목명'].notna()].sort_values('종목코드').reset_index(drop=True)
 
         # 데이터 저장
         Tool.df저장(df=df_대상종목, path=os.path.join(self.folder_대상종목, f'df_대상종목_{self.s_오늘}'))
