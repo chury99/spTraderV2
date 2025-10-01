@@ -15,11 +15,12 @@ def define_폴더정보():
 
     # 데이터 폴더 정의
     folder_데이터 = os.path.join(folder_work, '데이터')
-    dic_폴더정보['데이터|실시간'] = os.path.join(folder_데이터, '실시간')
-    dic_폴더정보['데이터|전체종목'] = os.path.join(folder_데이터, '전체종목')
-    dic_폴더정보['데이터|대상종목'] = os.path.join(folder_데이터, '대상종목')
-    dic_폴더정보['데이터|조회순위'] = os.path.join(folder_데이터, '조회순위')
-    dic_폴더정보['데이터|감시종목'] = os.path.join(folder_데이터, '감시종목')
+    dic_폴더정보['데이터|주문체결'] = os.path.join(folder_데이터, '주문체결_ws')
+    dic_폴더정보['데이터|주식체결'] = os.path.join(folder_데이터, '주식체결_ws')
+    dic_폴더정보['데이터|전체종목'] = os.path.join(folder_데이터, '전체종목_tr')
+    dic_폴더정보['데이터|대상종목'] = os.path.join(folder_데이터, '대상종목_ws')
+    dic_폴더정보['데이터|조회순위'] = os.path.join(folder_데이터, '조회순위_tr')
+    dic_폴더정보['데이터|감시종목'] = os.path.join(folder_데이터, '감시종목_sp')
 
 
 

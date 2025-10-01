@@ -62,24 +62,22 @@ class CollectorBot:
 
     def get_대상종목(self):
         """ 조건검색식에서 대상종목 다운받아서 저장 """
-        # API 정의
-        api = xapi.WebsocketAPI_kiwoom
-
-        # 데이터 받아오기
-        df_대상종목 = api.get_조건검색(s_구분='실시간', n_검색식번호=5)
-        for i in range(5):
-            if len(df_대상종목) > 0:
-                break
-            else:
-                time.sleep(1)
-                df_대상종목 = api.get_조건검색(s_구분='실시간', n_검색식번호=5)
-                df_대상종목 = api.get_조건검색(s_구분='실시간', n_검색식번호=5)
-
-        # 데이터 정리
+        # 기준정보 불러오기
         df_전체종목 = pd.read_pickle(os.path.join(self.folder_전체종목, f'df_전체종목_{self.s_오늘}.pkl'))
         dic_코드2종목명 = df_전체종목.set_index('종목코드')['종목명'].to_dict()
+
+        # API 정의
+        api = xapi.WebsocketAPI_kiwoom.SimpleWebsocketAPI()
+
+        # 데이터 받아오기
+        n_검색식번호 = 5
+        df_조검검색목록, df_대상종목 = api.get_조건검색(n_검색식번호=n_검색식번호)
+
+        # 데이터 정리
+        df_대상종목['종목코드'] = df_대상종목['종목코드'].str[1:]
         df_대상종목['종목명'] = df_대상종목['종목코드'].apply(lambda x: dic_코드2종목명[x] if x in dic_코드2종목명 else None)
-        df_대상종목 = df_대상종목.loc[:, ['종목코드', '종목명', '검색식']]
+        df_대상종목['검색식'] = df_조검검색목록.set_index('검색식번호')['검색식명'].to_dict()[str(n_검색식번호)]
+        df_대상종목 = df_대상종목.sort_values('종목코드').reset_index(drop=True)
 
         # 데이터 저장
         Tool.df저장(df=df_대상종목, path=os.path.join(self.folder_대상종목, f'df_대상종목_{self.s_오늘}'))

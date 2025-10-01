@@ -28,10 +28,8 @@ class TraderBot:
 
         # 폴더 정의
         dic_폴더정보 = ut.폴더manager.define_폴더정보()
-        self.folder_실시간 = dic_폴더정보['데이터|실시간']
         self.folder_조회순위 = dic_폴더정보['데이터|조회순위']
         self.folder_감시종목 = dic_폴더정보['데이터|감시종목']
-        os.makedirs(self.folder_실시간, exist_ok=True)
         os.makedirs(self.folder_조회순위, exist_ok=True)
         os.makedirs(self.folder_감시종목, exist_ok=True)
 
@@ -84,7 +82,7 @@ class TraderBot:
         """ tr_실시간종목조회순위 조회하여 대상종목 생성 후 실시간 등록 """
         # 감시종목 등록 - 장중 재구동 대응
         if len(self.li_감시종목) > 0:
-            res = await self.api.req_실시간등록(li_종목코드=self.li_감시종목, li_데이터타입=['주식체결'])
+            res = await self.api.req_실시간등록(li_종목코드=self.li_감시종목, li_데이터타입=['주문체결', '주식체결'])
             self.make_로그(f'총 {len(self.li_감시종목)}개\n'
                          f'{res}')
 
@@ -158,9 +156,14 @@ class TraderBot:
                 await loop.run_in_executor(None, pd.to_pickle, self.li_감시종목, self.path_감시종목)
 
                 # 로그기록
-                self.make_로그(f'총{len(self.li_감시종목)} 종목\n'
-                             f'해지 {len(li_감시종목_해지)} 종목 - {res_해지}\n'
-                             f'등록 {len(li_감시종목_추가)} 종목 - {res_등록}')
+                s_로그 = (f'총 {len(self.li_감시종목)} 종목\n'
+                        f'해지 {len(li_감시종목_해지)} 종목 - {res_해지}\n'
+                        f'등록 {len(li_감시종목_추가)} 종목 - {res_등록}')
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, self.make_로그, s_로그)
+                # self.make_로그(f'총 {len(self.li_감시종목)} 종목\n'
+                #              f'해지 {len(li_감시종목_해지)} 종목 - {res_해지}\n'
+                #              f'등록 {len(li_감시종목_추가)} 종목 - {res_등록}')
 
                 # 구동 주기 설정
                 await asyncio.sleep(0.1)
@@ -242,8 +245,8 @@ class TraderBot:
     # async def activate_실시간시세(self):
         """ exec 함수들을 비동기로 구동 """
         # 웹소켓 서버 접속 및 수신대기 설정
-        await self.api.connent_서버()
-        task_수신대기 = asyncio.create_task(self.api.receive_수신메세지())
+        await self.api.ws_서버접속()
+        task_수신대기 = asyncio.create_task(self.api.ws_메세지수신())
         await asyncio.sleep(1)
 
         # 실시간 등록
@@ -258,9 +261,13 @@ class TraderBot:
         task_exec_저장 = asyncio.create_task(self.exec_저장())
 
         # task 활성화
-        await asyncio.gather(task_수신대기,
-                             task_exec_실시간등록,
-                             task_exec_ui, task_exec_콘솔, task_exec_저장)
+        await asyncio.gather(
+            task_수신대기,
+            task_exec_실시간등록,
+            task_exec_ui,
+            task_exec_콘솔,
+            task_exec_저장
+        )
 
 
 # noinspection SpellCheckingInspection,PyPep8Naming,NonAsciiCharacters

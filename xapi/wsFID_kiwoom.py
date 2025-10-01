@@ -17,8 +17,12 @@ class fid_주문체결_00:
             '2134': '거래소구분', '2135': '거래소구분명', '2136': 'SOR여부'
         }
         self.dic_이름2코드 = {value: key for key, value in self.dic_코드2이름.items()}
-        self.dic_매도수구분 = {'1': '매도', '2': '매수'}
-        self.dic_거래소구분 = {'0': '통합', '1': 'KRX', '2': 'NXT'}
+        self.dic_매도수구분 = {
+            '1': '매도', '2': '매수'
+        }
+        self.dic_거래소구분 = {
+            '0': '통합', '1': 'KRX', '2': 'NXT'
+        }
 
 
 # noinspection SpellCheckingInspection,PyPep8Naming,NonAsciiCharacters
@@ -68,7 +72,9 @@ class fid_주식체결_0B:
             '620': '당일거래평균가', '732': 'CFD거래비용', '852': '대주거래비용', '9081': '거래소구분'
         }
         self.dic_이름2코드 = {value: key for key, value in self.dic_코드2이름.items()}
-        self.dic_장구분 = {'1': '장전시간외', '2': '장중', '3': '장후시간외'}
+        self.dic_장구분 = {
+            '1': '장전시간외', '2': '장중', '3': '장후시간외'
+        }
 
 
 # noinspection SpellCheckingInspection,PyPep8Naming,NonAsciiCharacters
@@ -142,11 +148,13 @@ class fid_장시작시간_0s:
             '215': '장운영구분', '20': '체결시간', '214': '장시작예상잔여시간'
         }
         self.dic_이름2코드 = {value: key for key, value in self.dic_코드2이름.items()}
-        self.dic_장운영구분 = {'0': 'KRX장전', '3': 'KRX장시작',
-                     'P': 'NXT프리마켓개시', 'Q': 'NXT프리마켓종료',
-                     'R': 'NXT메인마켓개시', 'S': 'NXT메인마켓종료',
-                     'T': 'NXT애프터마켓단일가개시', 'U': 'NXT애프터마켓개시',
-                     'V': 'NXT종가매매종료', 'W': 'NXT애프터마켓종료'}
+        self.dic_장운영구분 = {
+            '0': 'KRX장전', '3': 'KRX장시작',
+            'P': 'NXT프리마켓개시', 'Q': 'NXT프리마켓종료',
+            'R': 'NXT메인마켓개시', 'S': 'NXT메인마켓종료',
+            'T': 'NXT애프터마켓단일가개시', 'U': 'NXT애프터마켓개시',
+            'V': 'NXT종가매매종료', 'W': 'NXT애프터마켓종료'
+        }
 
 
 # noinspection SpellCheckingInspection,PyPep8Naming,NonAsciiCharacters

@@ -355,30 +355,29 @@ class RestAPIkiwoom:
 
         return s_서버주소
 
-    def download_전체종목(self):
-        """ 전체 종목코드 및 종목명 다운운받아 저장 후 리턴 """
-        # 폴더생성
-        os.makedirs(self.folder_전체종목, exist_ok=True)
+    # def download_전체종목(self):
+    #     """ 전체 종목코드 및 종목명 다운운받아 저장 후 리턴 """
+    #     # 폴더생성
+    #     os.makedirs(self.folder_전체종목, exist_ok=True)
+    #
+    #     # 다운로드
+    #     li_df_전체종목 = list()
+    #     for s_시장 in ['코스피', '코스닥']:
+    #         df_종목별주가 = self.tr_업종별주가요청(s_시장=s_시장)
+    #         li_df_전체종목.append(df_종목별주가)
+    #     df_전체종목 = pd.concat(li_df_전체종목, axis=0)
+    #
+    #     # 종목코드 변환용 dic 생성
+    #     dic_종목코드2종목명 = df_전체종목.set_index('종목코드')['종목명'].to_dict()
+    #
+    #     # 파일 저장
+    #     df_전체종목.to_pickle(os.path.join(self.folder_전체종목, f'df_전체종목_{self.s_오늘}.pkl'))
+    #     df_전체종목.to_csv(os.path.join(self.folder_전체종목, f'df_전체종목_{self.s_오늘}.csv'), index=False, encoding='cp949')
+    #     pd.to_pickle(dic_종목코드2종목명, os.path.join(self.folder_전체종목, f'dic_종목코드2종목명_{self.s_오늘}.pkl'))
+    #
+    #     return dic_종목코드2종목명
 
-        # 다운로드
-        li_df_전체종목 = list()
-        for s_시장 in ['코스피', '코스닥']:
-            df_종목별주가 = self.tr_업종별주가요청(s_시장=s_시장)
-            li_df_전체종목.append(df_종목별주가)
-        df_전체종목 = pd.concat(li_df_전체종목, axis=0)
 
-        # 종목코드 변환용 dic 생성
-        dic_종목코드2종목명 = df_전체종목.set_index('종목코드')['종목명'].to_dict()
-
-        # 파일 저장
-        df_전체종목.to_pickle(os.path.join(self.folder_전체종목, f'df_전체종목_{self.s_오늘}.pkl'))
-        df_전체종목.to_csv(os.path.join(self.folder_전체종목, f'df_전체종목_{self.s_오늘}.csv'), index=False, encoding='cp949')
-        pd.to_pickle(dic_종목코드2종목명, os.path.join(self.folder_전체종목, f'dic_종목코드2종목명_{self.s_오늘}.pkl'))
-
-        return dic_종목코드2종목명
-
-
-#######################################################################################################################
 if __name__ == '__main__':
     # noinspection PyPep8Naming,NonAsciiCharacters,SpellCheckingInspection
     def test():
@@ -389,6 +388,6 @@ if __name__ == '__main__':
         # df_종목별주가 = api.tr_업종별주가요청(s_시장='코스피')
         # dic_종목코드2종목명 = api.download_전체종목()
         # df_실시간조회순위 = api.tr_실시간종목조회순위()
-        # res = api.tr_주식주문(s_구분='매도', s_종목코드='319400', n_주문수량=1, n_주문단가=6990, s_매매구분='보통')
+        # res = api.tr_주식주문(s_구분='매수', s_종목코드='319400', n_주문수량=1, n_주문단가=6590, s_매매구분='보통')
         pass
     test()
