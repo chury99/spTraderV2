@@ -25,9 +25,9 @@ class TraderBot:
 
         # 폴더 정의
         dic_폴더정보 = ut.폴더manager.define_폴더정보()
-        self.folder_조회순위 = dic_폴더정보['데이터|조회순위']
-        self.folder_감시종목 = dic_폴더정보['데이터|감시종목']
         self.folder_대상종목 = dic_폴더정보['데이터|대상종목']
+        self.folder_조회순위 = dic_폴더정보['데이터|조회순위']
+        self.folder_감시종목 = dic_폴더정보['매수매도|감시종목']
         os.makedirs(self.folder_조회순위, exist_ok=True)
         os.makedirs(self.folder_감시종목, exist_ok=True)
 

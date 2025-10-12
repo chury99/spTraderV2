@@ -30,7 +30,7 @@ class TraderBot:
 
         # 폴더 정의
         dic_폴더정보 = ut.폴더manager.define_폴더정보()
-        self.folder_주문체결 = dic_폴더정보['데이터|주문체결']
+        self.folder_주문체결 = dic_폴더정보['매수매도|주문체결']
         self.folder_주식체결 = dic_폴더정보['데이터|주식체결']
         os.makedirs(self.folder_주문체결, exist_ok=True)
         os.makedirs(self.folder_주식체결, exist_ok=True)
@@ -121,12 +121,14 @@ class TraderBot:
                 with open(path_실시간파일, mode='wt', encoding='cp949') as f:
                     f.write(f'{s_컬럼명_헤더}\n')
 
+        li_수신데이터 = list()
         while True:
-            li_수신데이터 = list()
+            # li_수신데이터 = list()
+            # 데이터 수신 - 큐에 쌓여 있는 전체 데이터 수집
             try:
-                # 데이터 수신
                 while True:
-                    li_수신데이터 = li_수신데이터 + self.queue_mp_실시간저장.get_nowait()
+                    # li_수신데이터 = li_수신데이터 + self.queue_mp_실시간저장.get_nowait()
+                    li_수신데이터.append(self.queue_mp_실시간저장.get_nowait())
             except _queue.Empty:
                 # pass
                 time.sleep(0.01)
@@ -178,6 +180,7 @@ class TraderBot:
                         with open(dic_path[s_항목명], mode='at', encoding='cp949') as f:
                             f.write(s_데이터_블록)
                         li_배치데이터.clear()
+                        li_수신데이터.clear()
                     except Exception as e:
                         self.make_로그(f'파일 쓰기 - {e}')
 
