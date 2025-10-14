@@ -44,8 +44,8 @@ class LauncherTrader:
     def run_트레이더(self):
         """ 트레이딩을 위한 bot 실행 - 병렬 구동 """
         # queue 생성
-        # queue_mp_실시간저장 = mp.Queue()
-        queue_mp_실시간저장 = mp.Manager().Queue()
+        queue_mp_실시간저장 = mp.Queue()
+        # queue_mp_실시간저장 = mp.Manager().Queue()
 
         # 실행 모듈 정의
         dic_모듈 = dict(
@@ -68,7 +68,10 @@ class LauncherTrader:
 
                 # 종료시간 이후라면 프로세스 종료
                 if pd.Timestamp.now() > pd.Timestamp(self.s_종료시각):
-                    ret = p_봇.terminate() if p_봇.is_alive() else None
+                # if pd.Timestamp.now() > pd.Timestamp('16:31:00'):
+                    ret = queue_mp_실시간저장.put(['종료']) if s_모듈명 == 'bot_실시간저장'\
+                            else p_봇.terminate() if p_봇.is_alive() else None
+                    # ret = p_봇.terminate() if p_봇.is_alive() else None
                     b_동작중 = False
 
                 # 종료시간 내 비정상 종료 시 재시감시
