@@ -115,6 +115,32 @@ class RestAPIkiwoom:
             print(f'주문이상 - {dic_데이터}')
             return dic_데이터
 
+    def tr_체결잔고요청(self):
+        """ 계좌 | kt00005 | 계좌 예수금 및 보유 주식 조회 후 리턴 """
+        # tr 요청
+        s_서버주소 = self.info_서버주소(s_서비스='계좌')
+        s_tr아이디 = 'kt00005'
+        s_리스트키 = 'stk_cntr_remn'
+        dic_바디 = dict(dmst_stex_tp=self.s_거래소)
+        dic_데이터 = self.get_tr데이터(s_서버주소=s_서버주소, s_tr아이디=s_tr아이디, dic_바디=dic_바디, s_리스트키=s_리스트키)
+
+        # 데이터 정리
+        dic_계좌잔고 = dict(n_d2예수금=int(dic_데이터['entr_d2']))
+        df_데이터 = pd.DataFrame(dic_데이터[s_리스트키])
+        df_종목별잔고 = pd.DataFrame()
+        if len(df_데이터) > 0:
+            df_종목별잔고['종목코드'] = df_데이터['stk_cd'].astype(str)
+            df_종목별잔고['종목명'] = df_데이터['stk_nm'].astype(str)
+            df_종목별잔고['현재잔고'] = df_데이터['cur_qty'].astype(int)
+            df_종목별잔고['현재가'] = df_데이터['cur_prc'].astype(int)
+            df_종목별잔고['매입단가'] = df_데이터['buy_uv'].astype(int)
+            df_종목별잔고['매입금액'] = df_데이터['pur_amt'].astype(int)
+            df_종목별잔고['평가금액'] = df_데이터['evlt_amt'].astype(int)
+            df_종목별잔고['평가손익'] = df_데이터['evltv_prft'].astype(int)
+            df_종목별잔고['손익률'] = df_데이터['pl_rt'].astype(float)
+
+        return dic_계좌잔고, df_종목별잔고
+
     def tr_업종별주가요청(self, s_시장):
         """ 업종 | ka20002 | 시장 내 전체 종목에 대한 정보 조회 후 리턴 """
         # 기준정보 정의
@@ -149,95 +175,110 @@ class RestAPIkiwoom:
 
         return df_종목별주가
 
-    def tr_체결잔고요청(self):
-        """ 계좌 | kt00005 | 계좌 예수금 및 보유 주식 조회 후 리턴 """
-        # tr 요청
-        s_서버주소 = self.info_서버주소(s_서비스='계좌')
-        s_tr아이디 = 'kt00005'
-        s_리스트키 = 'stk_cntr_remn'
-        dic_바디 = dict(dmst_stex_tp=self.s_거래소)
-        dic_데이터 = self.get_tr데이터(s_서버주소=s_서버주소, s_tr아이디=s_tr아이디, dic_바디=dic_바디, s_리스트키=s_리스트키)
-
-        # 데이터 정리
-        dic_계좌잔고 = dict(n_d2예수금=int(dic_데이터['entr_d2']))
-        df_데이터 = pd.DataFrame(dic_데이터[s_리스트키])
-        df_종목별잔고 = pd.DataFrame()
-        if len(df_데이터) > 0:
-            df_종목별잔고['종목코드'] = df_데이터['stk_cd'].astype(str)
-            df_종목별잔고['종목명'] = df_데이터['stk_nm'].astype(str)
-            df_종목별잔고['현재잔고'] = df_데이터['cur_qty'].astype(int)
-            df_종목별잔고['현재가'] = df_데이터['cur_prc'].astype(int)
-            df_종목별잔고['매입단가'] = df_데이터['buy_uv'].astype(int)
-            df_종목별잔고['매입금액'] = df_데이터['pur_amt'].astype(int)
-            df_종목별잔고['평가금액'] = df_데이터['evlt_amt'].astype(int)
-            df_종목별잔고['평가손익'] = df_데이터['evltv_prft'].astype(int)
-            df_종목별잔고['손익률'] = df_데이터['pl_rt'].astype(float)
-
-        return dic_계좌잔고, df_종목별잔고
-
-    def tr_주식일봉차트조회요청(self, s_종목코드, s_기준일from=None, s_기준일to=None):
+    def tr_주식일봉차트조회요청(self, s_종목코드, s_시작일자=None, s_종료일자=None):
         """ 차트 | ka10081 | 종목별 일봉 정보 조회 후 리턴 """
         # tr 요청
         s_서버주소 = self.info_서버주소(s_서비스='차트')
         s_tr아이디 = 'ka10081'
         s_수정주가 = '0'    # 0:미적용, 1:적용
-        s_기준일to = pd.Timestamp.now().strftime('%Y%m%d') if s_기준일to is None else s_기준일to
-        s_기준일from = s_기준일to if s_기준일from is None else s_기준일from
+        s_종료일자 = pd.Timestamp.now().strftime('%Y%m%d') if s_종료일자 is None else s_종료일자
+        # s_시작일자 = s_종료일자 if s_시작일자 is None else s_시작일자
         s_리스트키 = 'stk_dt_pole_chart_qry'
-        dic_바디 = dict(stk_cd=s_종목코드, base_dt=s_기준일to, upd_stkpc_tp=s_수정주가)
+        s_일자키 = 'dt'
+        dic_바디 = dict(stk_cd=s_종목코드, base_dt=s_종료일자, upd_stkpc_tp=s_수정주가)
         dic_데이터 = self.get_tr데이터(s_서버주소=s_서버주소, s_tr아이디=s_tr아이디, dic_바디=dic_바디, s_리스트키=s_리스트키,
-                                 s_기준일from=s_기준일from)
+                                 s_기준일from=s_시작일자, s_일자키=s_일자키)
 
         # 데이터 정리
         df_데이터 = pd.DataFrame(dic_데이터[s_리스트키])
         df_일봉 = pd.DataFrame()
         if len(df_데이터) > 0:
-            df_일봉['일자'] = df_데이터['dt'].astype(str)
-            df_일봉['종목코드'] = s_종목코드
-            df_일봉['종목명'] = self.dic_종목코드2종목명[s_종목코드]
-            df_일봉['시가'] = df_데이터['open_pric'].astype(int)
-            df_일봉['고가'] = df_데이터['high_pric'].astype(int)
-            df_일봉['저가'] = df_데이터['low_pric'].astype(int)
-            df_일봉['종가'] = df_데이터['cur_prc'].astype(int)
-            df_일봉['거래량'] = df_데이터['trde_qty'].astype(int)
-            df_일봉['거래대금(백만)'] = df_데이터['trde_prica'].astype(int)
+            if df_데이터[s_일자키].values[0] != '':
+                # 데이터 처리
+                df_일봉['일자'] = df_데이터['dt'].astype(str)
+                df_일봉['종목코드'] = s_종목코드
+                df_일봉['시가'] = df_데이터['open_pric'].astype(int)
+                df_일봉['고가'] = df_데이터['high_pric'].astype(int)
+                df_일봉['저가'] = df_데이터['low_pric'].astype(int)
+                df_일봉['종가'] = df_데이터['cur_prc'].astype(int)
+                df_일봉['거래량'] = df_데이터['trde_qty'].astype(int)
+                df_일봉['거래대금(백만)'] = df_데이터['trde_prica'].astype(int)
 
-            # from 일자 정리
-            df_일봉 = df_일봉[df_일봉['일자'] >= s_기준일from]
+                # from, to 일자 정리
+                df_일봉 = df_일봉[df_일봉['일자'] >= s_시작일자] if s_시작일자 is not None else df_일봉
+                df_일봉 = df_일봉[df_일봉['일자'] <= s_종료일자]
 
         return df_일봉
 
-    def tr_주식분봉차트조회요청(self, s_종목코드, s_틱범위, s_기준일from=None, s_기준일to=None):
+    def tr_주식분봉차트조회요청(self, s_종목코드, s_틱범위, s_시작일자=None, s_종료일자=None):
         """ 차트 | ka10080 | 종목별 분봉 정보 조회 후 리턴 """
         # tr 요청
         s_서버주소 = self.info_서버주소(s_서비스='차트')
         s_tr아이디 = 'ka10080'
         s_수정주가 = '0'    # 0:미적용, 1:적용
-        s_기준일to = pd.Timestamp.now().strftime('%Y%m%d') if s_기준일to is None else s_기준일to
-        s_기준일from = s_기준일to if s_기준일from is None else s_기준일from
+        s_종료일자 = pd.Timestamp.now().strftime('%Y%m%d') if s_종료일자 is None else s_종료일자
+        # s_시작일자 = s_종료일자 if s_시작일자 is None else s_시작일자
         s_리스트키 = 'stk_min_pole_chart_qry'
+        s_일자키 = 'cntr_tm'
         dic_바디 = dict(stk_cd=s_종목코드, tic_scope=s_틱범위, upd_stkpc_tp=s_수정주가)
         dic_데이터 = self.get_tr데이터(s_서버주소=s_서버주소, s_tr아이디=s_tr아이디, dic_바디=dic_바디, s_리스트키=s_리스트키,
-                                 s_기준일from=s_기준일from)
+                                 s_기준일from=s_시작일자, s_일자키=s_일자키)
 
         # 데이터 정리
         df_데이터 = pd.DataFrame(dic_데이터[s_리스트키])
         df_분봉 = pd.DataFrame()
         if len(df_데이터) > 0:
-            df_분봉['일자'] = df_데이터['cntr_tm'].str[:8]
-            df_분봉['종목코드'] = s_종목코드
-            df_분봉['종목명'] = self.dic_종목코드2종목명[s_종목코드]
-            df_분봉['시간'] = df_데이터['cntr_tm'].str[8:10] + ':' + df_데이터['cntr_tm'].str[10:12] + ':' + df_데이터['cntr_tm'].str[12:]
-            df_분봉['시가'] = df_데이터['open_pric'].astype(int).abs()
-            df_분봉['고가'] = df_데이터['high_pric'].astype(int).abs()
-            df_분봉['저가'] = df_데이터['low_pric'].astype(int).abs()
-            df_분봉['종가'] = df_데이터['cur_prc'].astype(int).abs()
-            df_분봉['거래량'] = df_데이터['trde_qty'].astype(int)
+            if df_데이터[s_일자키].values[0] != '':
+                # 데이터 처리
+                df_분봉['일자'] = df_데이터['cntr_tm'].str[:8]
+                df_분봉['종목코드'] = s_종목코드
+                df_분봉['시간'] = df_데이터['cntr_tm'].str[8:10] + ':' + df_데이터['cntr_tm'].str[10:12] + ':' + df_데이터['cntr_tm'].str[12:]
+                df_분봉['시가'] = df_데이터['open_pric'].astype(int).abs()
+                df_분봉['고가'] = df_데이터['high_pric'].astype(int).abs()
+                df_분봉['저가'] = df_데이터['low_pric'].astype(int).abs()
+                df_분봉['종가'] = df_데이터['cur_prc'].astype(int).abs()
+                df_분봉['거래량'] = df_데이터['trde_qty'].astype(int)
 
-            # from 일자 정리
-            df_분봉 = df_분봉[df_분봉['일자'] >= s_기준일from]
+                # from, to 일자 정리
+                df_분봉 = df_분봉[df_분봉['일자'] >= s_시작일자] if s_시작일자 is not None else df_분봉
+                df_분봉 = df_분봉[df_분봉['일자'] <= s_종료일자]
 
         return df_분봉
+
+    def tr_업종일봉조회요청(self, s_업종코드, s_시작일자=None, s_종료일자=None):
+        """ 차트 | ka20006 | 종목별 일봉 정보 조회 후 리턴 """
+        # tr 요청
+        s_서버주소 = self.info_서버주소(s_서비스='차트')
+        s_tr아이디 = 'ka20006'
+        # s_수정주가 = '0'    # 0:미적용, 1:적용
+        s_종료일자 = pd.Timestamp.now().strftime('%Y%m%d') if s_종료일자 is None else s_종료일자
+        # s_시작일자 = s_종료일자 if s_시작일자 is None else s_시작일자
+        s_리스트키 = 'inds_dt_pole_qry'
+        s_일자키 = 'dt'
+        dic_바디 = dict(inds_cd=s_업종코드, base_dt=s_종료일자)
+        dic_데이터 = self.get_tr데이터(s_서버주소=s_서버주소, s_tr아이디=s_tr아이디, dic_바디=dic_바디, s_리스트키=s_리스트키,
+                                 s_기준일from=s_시작일자, s_일자키=s_일자키)
+
+        # 데이터 정리
+        df_데이터 = pd.DataFrame(dic_데이터[s_리스트키])
+        df_일봉 = pd.DataFrame()
+        if len(df_데이터) > 0:
+            if df_데이터[s_일자키].values[0] != '':
+                # 데이터 처리
+                df_일봉['일자'] = df_데이터['dt'].astype(str)
+                df_일봉['업종코드'] = s_업종코드
+                df_일봉['시가'] = df_데이터['open_pric'].astype(int) / 100
+                df_일봉['고가'] = df_데이터['high_pric'].astype(int) / 100
+                df_일봉['저가'] = df_데이터['low_pric'].astype(int) / 100
+                df_일봉['종가'] = df_데이터['cur_prc'].astype(int) / 100
+                df_일봉['거래량'] = df_데이터['trde_qty'].astype(int)
+                df_일봉['거래대금(백만)'] = df_데이터['trde_prica'].astype(int)
+
+                # from, to 일자 정리
+                df_일봉 = df_일봉[df_일봉['일자'] >= s_시작일자] if s_시작일자 is not None else df_일봉
+                df_일봉 = df_일봉[df_일봉['일자'] <= s_종료일자]
+
+        return df_일봉
 
     def tr_실시간종목조회순위(self, s_기간='5'):
         """ 종목정보 | ka00198 | 실시간 종목 조회 순위 정보 조회 후 리턴 \n
@@ -271,7 +312,7 @@ class RestAPIkiwoom:
 
         return df_실시간조회순위
 
-    def get_tr데이터(self, s_서버주소, s_tr아이디, dic_바디, s_리스트키=None, s_기준일from=None):
+    def get_tr데이터(self, s_서버주소, s_tr아이디, dic_바디, s_리스트키=None, s_기준일from=None, s_일자키=None):
         """ tr 조회 요청 후 응답 데이터 리턴 """
         # 변수 생성
         s_연속조회여부 = 'Y'
@@ -288,7 +329,9 @@ class RestAPIkiwoom:
             # 응답 확인
             dic_데이터 = res.json()
             if res.status_code != 200 or dic_데이터['return_code'] != 0:
-                return dic_데이터['return_msg']
+                return res
+            if '전문 처리 실패' in dic_데이터['return_msg']:
+                return dic_데이터_누적
 
             # 데이터 정리
             s_tr아이디, s_연속조회여부, s_연속조회키 = res.headers['api-id'], res.headers['cont-yn'], res.headers['next-key']
@@ -303,15 +346,20 @@ class RestAPIkiwoom:
             # 일자 기준 조회완료 확인
             if s_기준일from is not None:
                 # 일자항목 찾기
-                s_일자키 = None
-                for key, value in dic_데이터[s_리스트키][0].items():
-                    if value[:2] in ['19', '20'] and len(value) >= 8:
-                        s_일자키 = key
+                if s_일자키 is None:
+                    for key, value in dic_데이터[s_리스트키][0].items():
+                        if value[:2] in ['19', '20'] and len(value) >= 8:
+                            s_일자키 = key
 
                 # 조회 완료 확인
                 s_조회일last = dic_데이터_누적[s_리스트키][-1][s_일자키]
                 if s_조회일last < s_기준일from:
                     break
+
+            # 기준일 미존재 시 1회만 조회
+            else:
+                break
+
 
             # tr 딜레이
             if s_연속조회여부 == 'Y':

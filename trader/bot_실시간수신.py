@@ -96,8 +96,8 @@ class TraderBot:
 
                 # 로그기록
                 s_로그 = (f'총 {len(self.li_감시종목)} 종목\n'
-                        f'해지 {len(li_감시종목_해지)} 종목 - {res_해지}\n'
-                        f'등록 {len(li_감시종목_추가)} 종목 - {res_등록}')
+                        f'해지 {len(li_감시종목_해지)} - {res_해지}\n'
+                        f'등록 {len(li_감시종목_추가)} - {res_등록}')
                 loop = asyncio.get_running_loop()
                 await loop.run_in_executor(None, self.make_로그, s_로그)
 

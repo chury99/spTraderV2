@@ -20,11 +20,11 @@ def define_폴더정보():
 
     # 데이터 폴더 정의
     folder_데이터 = os.path.join(folder_work, '데이터')
-    dic_폴더정보['데이터|temp'] = os.path.join(folder_데이터, 'temp')
     dic_폴더정보['데이터|차트수집'] = os.path.join(folder_데이터, '차트수집_tr')
     dic_폴더정보['데이터|주식체결'] = os.path.join(folder_데이터, '주식체결_ws')
     dic_폴더정보['데이터|전체종목'] = os.path.join(folder_데이터, '전체종목_tr')
     dic_폴더정보['데이터|대상종목'] = os.path.join(folder_데이터, '대상종목_ws')
+    dic_폴더정보['데이터|전체일자'] = os.path.join(folder_데이터, '전체일자_tr')
     dic_폴더정보['데이터|조회순위'] = os.path.join(folder_데이터, '조회순위_tr')
 
 
