@@ -7,7 +7,7 @@ import pandas as pd
 import multiprocessing as mp
 
 import ut.로그maker, ut.폴더manager
-import collector.bot_정보수집
+import collector.bot_정보수집, collector.bot_차트수집
 
 # noinspection NonAsciiCharacters,PyPep8Naming,SpellCheckingInspection
 class LauncherCollector:
@@ -40,11 +40,11 @@ class LauncherCollector:
 
     def run_정보수집(self):
         """ 정보수집 모듈 실행 """
-        # 프로세스 정의 및 실행
+        # 프로세스 정의
         p_수집봇 = mp.Process(target=collector.bot_정보수집.run, name='bot_정보수집')
-        p_수집봇.start()
 
-        # 프로세스 종료
+        # 프로세스 실행 및 종료 대기
+        p_수집봇.start()
         p_수집봇.join()
 
         # 로그 기록
@@ -55,7 +55,29 @@ class LauncherCollector:
 
     def run_차트수집(self):
         """ 차트수집 모듈 실행 - 실시간 모듈 종료 후 바로 진행 """
-        pass
+        # 프로세스 정의
+        p_수집봇 = mp.Process(target=collector.bot_차트수집.run, name='bot_차트수집')
+
+        # 실행 대기
+        while True:
+            s_시작시각 = self.s_종료시각
+            if pd.Timestamp.now() >= pd.Timestamp(s_시작시각):
+                self.make_로그(f'{p_수집봇.name} 구동 시작')
+                break
+            else:
+                s_현재시각 = pd.Timestamp.now().strftime('%H:%M:%S')
+                print(f'[{s_현재시각}] 실행대기중 - {s_시작시각} 실행 예정')
+                time.sleep(60)
+
+        # 프로세스 실행 및 종료 대기
+        p_수집봇.start()
+        p_수집봇.join()
+
+        # 로그 기록
+        if p_수집봇.exitcode <= 0:
+            self.make_로그(f'{p_수집봇.name} 구동 완료')
+        else:
+            self.send_카톡_오류발생(s_프로세스명=p_수집봇.name, n_오류코드=p_수집봇.exitcode)
 
     def run_캐시생성(self):
         """ 캐시생성 모듈 실행 """
@@ -74,7 +96,7 @@ class LauncherCollector:
 def run():
     """ 실행 함수 """
     l = LauncherCollector()
-    l.run_정보수집()
+    # l.run_정보수집()
     l.run_차트수집()
     l.run_캐시생성()
 
