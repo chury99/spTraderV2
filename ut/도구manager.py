@@ -38,14 +38,17 @@ def sql불러오기(path, s_테이블명=None, b_전체=False):
     elif s_테이블명 is None:
         df_테이블명 = pd.read_sql(f'SELECT name FROM sqlite_master WHERE type="table"', con=con)
         li_테이블명 = list(df_테이블명['name'])
+        con.close()
 
         return li_테이블명
 
     # 데이터 불러오기
     elif s_테이블명 is not None:
         df_데이터 = pd.read_sql(f'SELECT * FROM {s_테이블명}', con=con)
+        con.close()
 
         return df_데이터
 
     else:
+        con.close()
         return None
