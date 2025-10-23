@@ -27,10 +27,8 @@ class CollectorBot:
         dic_폴더정보 = ut.폴더manager.define_폴더정보()
         self.folder_전체종목 = dic_폴더정보['데이터|전체종목']
         self.folder_대상종목 = dic_폴더정보['데이터|대상종목']
-        self.folder_전체일자 = dic_폴더정보['데이터|전체일자']
         os.makedirs(self.folder_전체종목, exist_ok=True)
         os.makedirs(self.folder_대상종목, exist_ok=True)
-        os.makedirs(self.folder_전체일자, exist_ok=True)
 
         # 기준정보 정의
         self.s_오늘 = pd.Timestamp.now().strftime('%Y%m%d')
@@ -87,34 +85,12 @@ class CollectorBot:
         # 로그 기록
         self.make_로그(f'저장 완료 - {len(df_대상종목):,.0f} 종목')
 
-    def get_전체일자(self):
-        """ 코스피 기준으로 시장이 열리는 일자를 찾아서 저장 """
-        # 기준정보 정의
-        dic_업종코드 = dict(코스피='001', 대형주='002', 중형주='003', 소형주='004', 코스닥='101',
-                        KOSPI200='201', KOSTAR='302', KRX100='701')
-
-        # API 정의
-        api = xapi.RestAPI_kiwoom.RestAPIkiwoom()
-
-        # 코스피 일봉 조회
-        df_일봉 = api.tr_업종일봉조회요청(s_업종코드=dic_업종코드['코스피'])
-
-        # 데이터 정리
-        li_전체일자 = sorted(list(df_일봉['일자'].unique()))
-
-        # 데이터 저장
-        pd.to_pickle(li_전체일자, os.path.join(self.folder_전체일자, f'li_전체일자_{self.s_오늘}.pkl'))
-
-        # 로그 기록
-        self.make_로그(f'저장 완료')
-
 
 def run():
     """ 실행 함수 """
     c = CollectorBot()
     c.get_전체종목()
     c.get_대상종목()
-    c.get_전체일자()
 
 if __name__ == '__main__':
     run()

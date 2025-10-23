@@ -50,20 +50,17 @@ class StderrHook:
         if 'Traceback' in s_error:
             s_현재 = pd.Timestamp.now().strftime('%Y%m%d %H:%M:%S')
             s_추가메세지 = f'\n---------- {s_현재} ----------\n'
-            # sys.__stderr__.write(s_추가메세지)
             self.stderr_콘솔.write(s_추가메세지)
             with open(self.path_에러로그, mode='at', encoding='utf-8') as f:
                 f.write(s_추가메세지)
 
         # 원래 에러 메세지 추가
-        # sys.__stderr__.write(s_error)
         self.stderr_콘솔.write(s_error)
         with open(self.path_에러로그, mode='at', encoding='utf-8') as f:
             f.write(s_error)
 
     def flush(self):
         """ 버퍼 비원주는 함수 """
-        # sys.__stderr__.flush()
         self.stderr_콘솔.flush()
 
 if __name__ == '__main__':

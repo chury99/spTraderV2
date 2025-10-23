@@ -257,7 +257,7 @@ class RestAPIkiwoom:
         s_일자키 = 'dt'
         dic_바디 = dict(inds_cd=s_업종코드, base_dt=s_종료일자)
         dic_데이터 = self.get_tr데이터(s_서버주소=s_서버주소, s_tr아이디=s_tr아이디, dic_바디=dic_바디, s_리스트키=s_리스트키,
-                                 s_기준일from=s_시작일자, s_일자키=s_일자키)
+                                 s_기준일from=s_시작일자, s_일자키=s_일자키, b_1회조회=True)
 
         # 데이터 정리
         df_데이터 = pd.DataFrame(dic_데이터[s_리스트키])
@@ -312,7 +312,7 @@ class RestAPIkiwoom:
 
         return df_실시간조회순위
 
-    def get_tr데이터(self, s_서버주소, s_tr아이디, dic_바디, s_리스트키=None, s_기준일from=None, s_일자키=None):
+    def get_tr데이터(self, s_서버주소, s_tr아이디, dic_바디, s_리스트키=None, s_기준일from=None, s_일자키=None, b_1회조회=False):
         """ tr 조회 요청 후 응답 데이터 리턴 """
         # 변수 생성
         s_연속조회여부 = 'Y'
@@ -352,12 +352,14 @@ class RestAPIkiwoom:
                             s_일자키 = key
 
                 # 조회 완료 확인
+                # if len(dic_데이터_누적[s_리스트키]) == 0:
+                #     continue
                 s_조회일last = dic_데이터_누적[s_리스트키][-1][s_일자키]
                 if s_조회일last < s_기준일from:
                     break
 
-            # 기준일 미존재 시 1회만 조회
-            else:
+            # 기준일 미존재 시 1회만 조회 - 전체조회 False 시에만
+            elif b_1회조회:
                 break
 
 
@@ -432,7 +434,7 @@ if __name__ == '__main__':
         api = RestAPIkiwoom()
         # dic_계좌잔고, df_종목별잔고 = api.tr_체결잔고요청()
         # df_일봉 = api.tr_주식일봉차트조회요청(s_종목코드='000020', s_기준일from='20230101', s_기준일to='20250831')
-        # df_분봉 = api.tr_주식분봉차트조회요청(s_종목코드='000020', s_틱범위='1', s_기준일from='20250825', s_기준일to='20250831')
+        # df_분봉 = api.tr_주식분봉차트조회요청(s_종목코드='000020', s_틱범위='1')
         # df_종목별주가 = api.tr_업종별주가요청(s_시장='코스피')
         # dic_종목코드2종목명 = api.download_전체종목()
         # df_실시간조회순위 = api.tr_실시간종목조회순위()

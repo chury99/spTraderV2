@@ -29,14 +29,15 @@ class CollectorBot:
         dic_폴더정보 = ut.폴더manager.define_폴더정보()
         self.folder_차트수집 = dic_폴더정보['데이터|차트수집']
         self.folder_전체종목 = dic_폴더정보['데이터|전체종목']
-        self.folder_전체일자 = dic_폴더정보['데이터|전체일자']
         os.makedirs(self.folder_차트수집, exist_ok=True)
 
         # 추가 폴더 정의
         self.folder_임시 = os.path.join(self.folder_차트수집, '임시저장')
+        self.folder_일자 = os.path.join(self.folder_차트수집, '전체일자')
         self.folder_일봉 = os.path.join(self.folder_차트수집, '일봉')
         self.folder_분봉 = os.path.join(self.folder_차트수집, '분봉')
         os.makedirs(self.folder_임시, exist_ok=True)
+        os.makedirs(self.folder_일자, exist_ok=True)
         os.makedirs(self.folder_일봉, exist_ok=True)
         os.makedirs(self.folder_분봉, exist_ok=True)
 
@@ -49,6 +50,27 @@ class CollectorBot:
 
         # 로그 기록
         self.make_로그(f'구동 시작')
+
+    def get_전체일자(self):
+        """ 코스피 기준으로 시장이 열리는 일자를 찾아서 저장 """
+        # 기준정보 정의
+        dic_업종코드 = dict(코스피='001', 대형주='002', 중형주='003', 소형주='004', 코스닥='101',
+                        KOSPI200='201', KOSTAR='302', KRX100='701')
+
+        # API 정의
+        api = xapi.RestAPI_kiwoom.RestAPIkiwoom()
+
+        # 코스피 일봉 조회
+        df_일봉 = api.tr_업종일봉조회요청(s_업종코드=dic_업종코드['코스피'])
+
+        # 데이터 정리
+        li_전체일자 = sorted(list(df_일봉['일자'].unique()))
+
+        # 데이터 저장
+        pd.to_pickle(li_전체일자, os.path.join(self.folder_일자, f'li_전체일자_{self.s_오늘}.pkl'))
+
+        # 로그 기록
+        self.make_로그(f'저장 완료')
 
     def find_대상일자(self):
         """ db 파일에 저장된 데이터의 마지막 일자 확인 """
@@ -74,8 +96,8 @@ class CollectorBot:
                 dic_최종일자['분봉'] = re.findall(r'\d{8}', s_테이블명_최종)[0]
 
         # 전체일자 확인
-        s_파일명 = max(파일 for 파일 in os.listdir(self.folder_전체일자) if '.pkl' in 파일)
-        li_전체일자 = pd.read_pickle(os.path.join(self.folder_전체일자, s_파일명))
+        s_파일명 = max(파일 for 파일 in os.listdir(self.folder_일자) if '.pkl' in 파일)
+        li_전체일자 = pd.read_pickle(os.path.join(self.folder_일자, s_파일명))
 
         # 대상일자 확인
         dic_대상일자 = dict()
@@ -88,10 +110,13 @@ class CollectorBot:
         # 로그 기록
         self.make_로그(f'일봉-{dic_대상일자["일봉"]}, 분봉-{dic_대상일자["분봉"]}')
 
-    def get_차트데이터(self):
+    def get_차트데이터(self, s_봉구분=None):
         """ 전체 종목 대상으로 일봉, 분봉 데이터 조회하여 pkl 파일로 저장 """
+        # 기준정보 설정
+        li_봉구분 = ['일봉', '분봉'] if s_봉구분 is None else [s_봉구분]
+
         # 차트 데이터 수집
-        for s_봉구분 in self.dic_li대상일자.keys():
+        for s_봉구분 in li_봉구분:
             # 일자별 데이터 수집
             for s_대상일자 in self.dic_li대상일자[s_봉구분]:
                 # 기준정보 정의
@@ -110,22 +135,36 @@ class CollectorBot:
                 df_차트 = dic_차트정보['df_차트']
                 li_전체종목 = dic_차트정보['li_전체종목']
                 li_제외종목 = dic_차트정보['li_제외종목']
-                li_완료종목 = df_차트['종목코드'].unique().tolist() if len(df_차트) > 0 else list()
-                li_잔여종목 = [종목 for 종목 in li_전체종목 if 종목 not in li_제외종목 and 종목 not in li_완료종목]
+                li_수집종목 = df_차트['종목코드'].unique().tolist() if len(df_차트) > 0 else list()
+                li_잔여종목 = [종목 for 종목 in li_전체종목 if 종목 not in li_제외종목 and 종목 not in li_수집종목]
+                n_전체 = len(li_전체종목)
+                n_제외 = len(li_제외종목)
+                n_수집 = len(li_수집종목)
 
                 # 차트데이터 받아오기
                 li_df차트 = list()
                 for i, s_종목코드 in enumerate(li_잔여종목):
                     # tr 조회
-                    if s_봉구분 == '일봉':
-                        df_차트_종목별 = self.api.tr_주식일봉차트조회요청(s_종목코드=s_종목코드, s_시작일자=s_대상일자, s_종료일자=s_대상일자)
-                        time.sleep(self.n_tr딜레이)
-                    elif s_봉구분 == '분봉':
-                        df_차트_종목별 = self.api.tr_주식분봉차트조회요청(s_종목코드=s_종목코드, s_시작일자=s_대상일자, s_종료일자=s_대상일자,
-                                                           s_틱범위='1')
-                        time.sleep(self.n_tr딜레이 - 0.1)
-                    else:
-                        df_차트_종목별 = pd.DataFrame()
+                    # if s_봉구분 == '일봉':
+                    #     df_차트_종목별 = self.api.tr_주식일봉차트조회요청(s_종목코드=s_종목코드,
+                    #                                        s_시작일자=s_대상일자, s_종료일자=s_대상일자)
+                    #     time.sleep(self.n_tr딜레이)
+                    # elif s_봉구분 == '분봉':
+                    #     df_차트_종목별 = self.api.tr_주식분봉차트조회요청(s_종목코드=s_종목코드,
+                    #                                        s_시작일자=s_대상일자, s_종료일자=s_대상일자, s_틱범위='1')
+                    #     time.sleep(self.n_tr딜레이)
+                    # else:
+                    #     df_차트_종목별 = pd.DataFrame()
+
+                    # tr 조회
+                    df_차트_종목별 = self.api.tr_주식일봉차트조회요청(s_종목코드=s_종목코드, s_시작일자=s_대상일자, s_종료일자=s_대상일자)\
+                                    if s_봉구분 == '일봉' else\
+                        self.api.tr_주식분봉차트조회요청(s_종목코드=s_종목코드, s_시작일자=s_대상일자, s_종료일자=s_대상일자, s_틱범위='1')\
+                                    if s_봉구분 == '분봉' else pd.DataFrame()
+                    # tr 후 딜레이
+                    n_tr딜레이 = self.api.n_tr딜레이 if s_봉구분 == '일봉' else\
+                                self.api.n_tr딜레이 if s_봉구분 == '분봉' else 0
+                    time.sleep(n_tr딜레이)
 
                     # 데이터 존재 시 - 데이터 처리
                     s_종목명 = dic_코드2종목명[s_종목코드]
@@ -138,7 +177,7 @@ class CollectorBot:
                         dic_차트정보['li_제외종목'].append(s_종목코드)
 
                     # 데이터 병합 및 저장
-                    if i % 100 == 0 or i == len(li_잔여종목) - 1:
+                    if i % 500 == 0 or i == len(li_잔여종목) - 1:
                         # 데이터 미존재 시 통과
                         if len(li_df차트) == 0:
                             continue
@@ -159,12 +198,13 @@ class CollectorBot:
                         li_df차트 = list()
 
                     # 로그 기록
-                    n_전체종목 = len(dic_차트정보['li_전체종목'])
-                    n_완료 = len(li_완료종목) + i + 1
-                    n_진척률 = n_완료 / n_전체종목 * 100
+                    # n_전체 = len(li_전체종목)
+                    # n_완료 = len(li_수집종목) + len(li_제외종목) + i + 1
+                    n_완료 = n_수집 + n_제외 + i + 1
+                    n_진척률 = n_완료 / n_전체 * 100
                     s_데이터존재 = '수집' if len(df_차트_종목별) > 0 else '제외'
                     self.make_로그(f'{s_봉구분}-{s_대상일자}\n'
-                                 f'  {n_진척률:.2f}%-{n_완료:,.0f}/{n_전체종목:,.0f}-{s_데이터존재}-{s_종목코드}_{s_종목명}')
+                                 f'  {n_진척률:.2f}%-{n_완료:,.0f}/{n_전체:,.0f}-{s_데이터존재}-{s_종목코드}-{s_종목명}')
 
     def update_db파일(self):
         """ 임시저장된 pkl 파일 읽어서 db 파일로 저장 """
@@ -184,7 +224,17 @@ class CollectorBot:
 
             # 신뢰성 검사 - 미충족 시 진행 종료
             if len(li_전체종목) != len(li_수집종목) + len(li_제외종목):
-                continue
+                # 로그 기록
+                self.make_로그(f'신뢰성 이상\n'
+                             f'- 전체 {len(li_전체종목):,.0f} - 수집 {len(li_수집종목):,.0f} - 제외 {len(li_제외종목):,.0f}')
+                raise AttributeError('신뢰성 이상')
+
+            # 데이터 검사
+            if len(li_수집종목) < len(li_전체종목) * 0.7:
+                # 로그 기록
+                self.make_로그(f'수집종목 수 이상\n'
+                             f'- 전체 {len(li_전체종목):,.0f} - 수집 {len(li_수집종목):,.0f} - 제외 {len(li_제외종목):,.0f}')
+                raise AttributeError('수집종목 수 이상')
 
             # 데이터 정리
             df_차트 = df_차트[df_차트['시간'] <= '15:30:00'] if s_봉구분 == '분봉' else df_차트
@@ -218,6 +268,7 @@ class CollectorBot:
 def run():
     """ 실행 함수 """
     c = CollectorBot()
+    c.get_전체일자()
     c.find_대상일자()
     c.get_차트데이터()
     c.update_db파일()

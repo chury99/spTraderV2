@@ -56,22 +56,39 @@ class LauncherCollector:
     def run_차트수집(self):
         """ 차트수집 모듈 실행 - 실시간 모듈 종료 후 바로 진행 """
         # 프로세스 정의
-        p_수집봇 = mp.Process(target=collector.bot_차트수집.run, name='bot_차트수집')
+        dic_수집봇 = dict(s_타겟=collector.bot_차트수집.run, s_네임='bot_차트수집')
 
         # 실행 대기
         while True:
             s_시작시각 = self.s_종료시각
             if pd.Timestamp.now() >= pd.Timestamp(s_시작시각):
-                self.make_로그(f'{p_수집봇.name} 구동 시작')
+                self.make_로그(f'{dic_수집봇['s_네임']} 구동 시작')
                 break
             else:
                 s_현재시각 = pd.Timestamp.now().strftime('%H:%M:%S')
                 print(f'[{s_현재시각}] 실행대기중 - {s_시작시각} 실행 예정')
                 time.sleep(60)
 
-        # 프로세스 실행 및 종료 대기
-        p_수집봇.start()
-        p_수집봇.join()
+        # 프로세스 실행 - 비정상 종료 시 재실행
+        dt_에러발생 = pd.Timestamp.now()
+        while True:
+            # 프로세스 구동
+            p_수집봇 = mp.Process(target=dic_수집봇['s_타겟'], name=dic_수집봇['s_네임'])
+            p_수집봇.start()
+            p_수집봇.join()
+
+            # 종상 종료 시 종료
+            if p_수집봇.exitcode <= 0:
+                break
+
+            # 비정상 종료 처리
+            else:
+                time.sleep(1)
+                if pd.Timestamp.now() - dt_에러발생 < pd.Timedelta(seconds=3):
+                    break
+                else:
+                    self.kakao.send_메세지(s_사용자='알림봇', s_수신인='여봉이', s_메세지=f'{p_수집봇.name} 모듈 재시작')
+                    dt_에러발생 = pd.Timestamp.now()
 
         # 로그 기록
         if p_수집봇.exitcode <= 0:
@@ -96,7 +113,7 @@ class LauncherCollector:
 def run():
     """ 실행 함수 """
     l = LauncherCollector()
-    # l.run_정보수집()
+    l.run_정보수집()
     l.run_차트수집()
     l.run_캐시생성()
 
