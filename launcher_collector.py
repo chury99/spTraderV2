@@ -98,7 +98,18 @@ class LauncherCollector:
 
     def run_캐시생성(self):
         """ 캐시생성 모듈 실행 """
-        pass
+        # 프로세스 정의
+        p_수집봇 = mp.Process(target=collector.bot_정보수집.run, name='bot_캐시생성')
+
+        # 프로세스 실행 및 종료 대기
+        p_수집봇.start()
+        p_수집봇.join()
+
+        # 로그 기록
+        if p_수집봇.exitcode <= 0:
+            self.make_로그(f'{p_수집봇.name} 구동 완료')
+        else:
+            self.send_카톡_오류발생(s_프로세스명=p_수집봇.name, n_오류코드=p_수집봇.exitcode)
 
     def send_카톡_오류발생(self, s_프로세스명, n_오류코드):
         """ 실행 오류 발생 시 프로세스명 포함하여 카톡 메세지 송부 """
