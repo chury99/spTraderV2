@@ -6,7 +6,7 @@ import time
 import pandas as pd
 import multiprocessing as mp
 
-import ut.로그maker, ut.폴더manager
+import ut.로그maker, ut.폴더manager, ut.파일manager
 import collector.bot_정보수집, collector.bot_차트수집
 
 # noinspection NonAsciiCharacters,PyPep8Naming,SpellCheckingInspection
@@ -111,6 +111,21 @@ class LauncherCollector:
         else:
             self.send_카톡_오류발생(s_프로세스명=p_수집봇.name, n_오류코드=p_수집봇.exitcode)
 
+    def ut_파일정리(self):
+        """ 파일manager 모듈 실행 """
+        # 프로세스 정의
+        p_수집봇 = mp.Process(target=ut.파일manager.run, name='bot_파일정리')
+
+        # 프로세스 실행 및 종료 대기
+        p_수집봇.start()
+        p_수집봇.join()
+
+        # 로그 기록
+        if p_수집봇.exitcode <= 0:
+            self.make_로그(f'{p_수집봇.name} 구동 완료')
+        else:
+            self.send_카톡_오류발생(s_프로세스명=p_수집봇.name, n_오류코드=p_수집봇.exitcode)
+
     def send_카톡_오류발생(self, s_프로세스명, n_오류코드):
         """ 실행 오류 발생 시 프로세스명 포함하여 카톡 메세지 송부 """
         # 메세지 정의
@@ -127,6 +142,7 @@ def run():
     l.run_정보수집()
     l.run_차트수집()
     l.run_캐시생성()
+    l.ut_파일정리()
 
 
 if __name__ == '__main__':

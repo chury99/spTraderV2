@@ -11,15 +11,20 @@ def define_폴더정보():
 
     # 기준정보 생성
     dic_폴더정보 = dict()
-    folder_work = dic_config['folder_work']
+    dic_폴더정보['folder_work'] = dic_config['folder_work']
+    dic_폴더정보['folder_log'] = dic_config['folder_log']
+    dic_폴더정보['folder_kakao'] = dic_config['folder_kakao']
+    folder_work = dic_폴더정보['folder_work']
 
     # 매수매도 폴더 정의
     folder_매수매도 = os.path.join(folder_work, '매수매도')
+    dic_폴더정보['매수매도'] = os.path.join(folder_매수매도)
     dic_폴더정보['매수매도|감시종목'] = os.path.join(folder_매수매도, '감시종목_sp')
     dic_폴더정보['매수매도|주문체결'] = os.path.join(folder_매수매도, '주문체결_ws')
 
     # 데이터 폴더 정의
     folder_데이터 = os.path.join(folder_work, '데이터')
+    dic_폴더정보['데이터'] = os.path.join(folder_데이터)
     dic_폴더정보['데이터|차트수집'] = os.path.join(folder_데이터, '차트수집_tr')
     dic_폴더정보['데이터|주식체결'] = os.path.join(folder_데이터, '주식체결_ws')
     dic_폴더정보['데이터|전체종목'] = os.path.join(folder_데이터, '전체종목_tr')
