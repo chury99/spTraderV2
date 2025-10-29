@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from pandas.core.methods.selectn import SelectNSeries
 
-import logic_데이터변환 as Logic
+import collector.logic_데이터변환 as Logic
 import ut.로그maker, ut.폴더manager, ut.도구manager as Tool
 import xapi.RestAPI_kiwoom
 

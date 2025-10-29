@@ -7,7 +7,7 @@ import pandas as pd
 import multiprocessing as mp
 
 import ut.로그maker, ut.폴더manager, ut.파일manager
-import collector.bot_정보수집, collector.bot_차트수집
+import collector.bot_정보수집, collector.bot_차트수집, collector.bot_캐시생성
 
 # noinspection NonAsciiCharacters,PyPep8Naming,SpellCheckingInspection
 class LauncherCollector:
@@ -99,7 +99,7 @@ class LauncherCollector:
     def run_캐시생성(self):
         """ 캐시생성 모듈 실행 """
         # 프로세스 정의
-        p_수집봇 = mp.Process(target=collector.bot_정보수집.run, name='bot_캐시생성')
+        p_수집봇 = mp.Process(target=collector.bot_캐시생성.run, name='bot_캐시생성')
 
         # 프로세스 실행 및 종료 대기
         p_수집봇.start()
