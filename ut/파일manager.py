@@ -1,16 +1,13 @@
 import os
 import sys
 import json
-import time
 import re
 import shutil
 
 import pandas as pd
 import paramiko
-import multiprocessing as mp
 
 import ut.로그maker, ut.폴더manager
-import collector.bot_정보수집, collector.bot_차트수집
 
 
 # noinspection NonAsciiCharacters,PyPep8Naming,SpellCheckingInspection
@@ -55,7 +52,6 @@ class FileManager:
         # 폴더 동기화
         li_업데이트파일 = list()
         for s_메인폴더, s_보조폴더 in dic_대상폴더.items():
-            # ret = self._sync_로컬2서버(s_대상폴더=s_대상폴더, s_구분='업데이트')
             ret = self._sync_폴더동기화(dic_대상머신=dic_대상머신, s_원본폴더=s_메인폴더, s_타겟폴더=s_보조폴더, s_구분='업데이트')
             li_업데이트파일 = li_업데이트파일 + ret
 
@@ -73,7 +69,6 @@ class FileManager:
         # 폴더 동기화
         li_업데이트파일 = list()
         for s_메인폴더, s_보조폴더 in dic_대상폴더.items():
-            # ret = self._sync_서버2서버(s_메인폴더=s_메인폴더, s_보조폴더=s_보조폴더, s_구분='업데이트')
             ret = self._sync_폴더동기화(dic_대상머신=dic_대상머신, s_원본폴더=s_메인폴더, s_타겟폴더=s_보조폴더, s_구분='업데이트')
             li_업데이트파일 = li_업데이트파일 + ret
 
@@ -83,9 +78,7 @@ class FileManager:
     def rotate_보관파일(self):
         """ 로컬머신 대상으로 보관기간 경과된 파일 삭제 """
         # 기준정보 정의
-        # dic_보관기간 = dict(로그=self.dic_config['파일보관기간(일)_log'], 분석=self.dic_config['파일보관기간(일)_analyzer'],
-        #             데이터=self.dic_config['파일보관기간(일)_collector'], 매수매도=self.dic_config['파일보관기간(일)_trader'])
-        dic_보관기간 = dict(로그=self.dic_config['파일보관기간(일)_log'],
+        dic_보관기간 = dict(로그=self.dic_config['파일보관기간(일)_log'], 분석=self.dic_config['파일보관기간(일)_analyzer'],
                     데이터=self.dic_config['파일보관기간(일)_collector'], 매수매도=self.dic_config['파일보관기간(일)_trader'])
         li_제외폴더 = self._find_하위폴더(s_기준폴더='매수매도|주문체결', b_전체폴더명=True) +\
                     self._find_하위폴더(s_기준폴더='데이터|차트수집', b_전체폴더명=True)
@@ -110,6 +103,15 @@ class FileManager:
             for path_삭제대상 in li_삭제대상:
                 li_삭제용량.append(os.path.getsize(path_삭제대상))
                 os.remove(path_삭제대상)
+
+            # 폴더 삭제 - 일자가 포함된 폴더
+            li_일자폴더 = [폴더 for 폴더 in li_대상폴더 if len(re.findall(r'\d{8}', 폴더)) > 0]
+            li_일자폴더_삭제대상 = [폴더 for 폴더 in li_일자폴더 if re.findall(r'\d{8}', 폴더)[0] < s_기준일자]
+            for path_삭제대상 in li_일자폴더_삭제대상:
+                try:
+                    os.rmdir(path_삭제대상)
+                except OSError:
+                    pass
 
             # 로그 기록
             s_삭제용량 = self._cal_단위변경(n_바이트=sum(li_삭제용량))

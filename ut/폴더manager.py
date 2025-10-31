@@ -32,6 +32,11 @@ def define_폴더정보():
     dic_폴더정보['데이터|조회순위'] = os.path.join(folder_데이터, '조회순위_tr')
     dic_폴더정보['데이터|차트캐시'] = os.path.join(folder_데이터, '차트캐시')
 
+    # 분석 폴더 정의
+    folder_분석 = os.path.join(folder_work, '분석')
+    dic_폴더정보['분석'] = os.path.join(folder_분석)
+    dic_폴더정보['분석|백테스팅'] = os.path.join(folder_분석, '백테스팅')
+
 
 
 
