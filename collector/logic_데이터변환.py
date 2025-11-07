@@ -9,13 +9,13 @@ from tqdm import tqdm
 # noinspection PyPep8Naming,SpellCheckingInspection,NonAsciiCharacters
 def make_초봉데이터(df_주식체결, s_일자, n_봉수, n_거래량제외기준=10):
     """ 입력받은 데이터를 초봉 데이터로 변환 후 df 리턴 """
-    # 데이터 변환
+    # 데이터 변환 - 거래량은 매수매도 구분 후 부호 제거
     df_주식체결 = df_주식체결.set_index(pd.to_datetime(s_일자 + ' ' + df_주식체결['체결시간'], format='%Y%m%d %H%M%S'))
     df_주식체결 = df_주식체결.astype({컬럼: int for 컬럼 in ['현재가', '거래량']})
-    df_주식체결[['현재가', '거래량']] = df_주식체결[['현재가', '거래량']].abs()
+    df_주식체결[['현재가']] = df_주식체결[['현재가']].abs()
 
     # 기준 이하 거래량 제외
-    df_주식체결_보정 = df_주식체결[(df_주식체결['거래량'] > n_거래량제외기준)]
+    df_주식체결_보정 = df_주식체결[(df_주식체결['거래량'].abs() > n_거래량제외기준)]
 
     # 종목별 초봉데이터 생성
     gr_주식체결 = df_주식체결_보정.groupby('종목코드')

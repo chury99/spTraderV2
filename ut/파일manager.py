@@ -52,7 +52,7 @@ class FileManager:
         # 폴더 동기화
         li_업데이트파일 = list()
         for s_메인폴더, s_보조폴더 in dic_대상폴더.items():
-            ret = self._sync_폴더동기화(dic_대상머신=dic_대상머신, s_원본폴더=s_메인폴더, s_타겟폴더=s_보조폴더, s_구분='업데이트')
+            ret = self._sync_폴더(dic_대상머신=dic_대상머신, s_원본폴더=s_메인폴더, s_타겟폴더=s_보조폴더, s_구분='업데이트')
             li_업데이트파일 = li_업데이트파일 + ret
 
         # 로그 기록
@@ -69,7 +69,7 @@ class FileManager:
         # 폴더 동기화
         li_업데이트파일 = list()
         for s_메인폴더, s_보조폴더 in dic_대상폴더.items():
-            ret = self._sync_폴더동기화(dic_대상머신=dic_대상머신, s_원본폴더=s_메인폴더, s_타겟폴더=s_보조폴더, s_구분='업데이트')
+            ret = self._sync_폴더(dic_대상머신=dic_대상머신, s_원본폴더=s_메인폴더, s_타겟폴더=s_보조폴더, s_구분='업데이트')
             li_업데이트파일 = li_업데이트파일 + ret
 
         # 로그 기록
@@ -166,7 +166,7 @@ class FileManager:
 
         return li_하위폴더
 
-    def _sync_폴더동기화(self, dic_대상머신, s_원본폴더, s_타겟폴더, s_구분='업데이트'):
+    def _sync_폴더(self, dic_대상머신, s_원본폴더, s_타겟폴더, s_구분='업데이트'):
         """ 로컬 파일을 서버에 업데이트 """
         # 기준정보 정의
         dic_기준폴더 = dict(로컬머신=self.folder_work,
@@ -177,8 +177,8 @@ class FileManager:
 
         # 대상파일 확인
         folder_원본 = f'{folder_원본머신}/{s_원본폴더}'
-        li_파일명 = [파일 for 파일 in os.listdir(folder_원본)
-                    if os.path.isfile(os.path.join(folder_원본, 파일)) and not 파일.startswith('.')]
+        li_파일명 = sorted(파일 for 파일 in os.listdir(folder_원본)
+                    if os.path.isfile(os.path.join(folder_원본, 파일)) and not 파일.startswith('.'))
 
         # 대상파일 미존재 시 종료
         if len(li_파일명) == 0:
@@ -224,7 +224,9 @@ class FileManager:
 
                         # 정보 업데이트
                         li_업데이트파일.append(s_파일명)
-                        self.make_로그(f'{s_파일명} - /{s_원본폴더}/ -> /{s_타겟폴더}/')
+                        self.make_로그(f'{s_원본머신} -> {s_타겟머신}\n'
+                                     f'- {s_파일명}\n'
+                                     f'- /{s_원본폴더} -> /{s_타겟폴더}')
 
         return li_업데이트파일
 
