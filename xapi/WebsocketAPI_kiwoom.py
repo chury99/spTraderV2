@@ -240,9 +240,9 @@ class SimpleWebsocketAPI:
             if s_서비스 == 'CNSRLST':
                 self.li_목록조회 = self.li_목록조회 + li_데이터
 
-            # 서비스별 데이터 처리 - 목록조회 - 실시간)
+            # 서비스별 데이터 처리 - 목록조회 - 실시간
             if s_서비스 == 'CNSRREQ' and 'cont_yn' not in res:
-                self.li_요청실시간 = self.li_요청실시간 + li_데이터
+                self.li_요청실시간 = self.li_요청실시간 + li_데이터 if li_데이터 is not None else None
                 break
 
             # 서비스별 데이터 처리 - 요청일반
@@ -285,21 +285,23 @@ class SimpleWebsocketAPI:
 
         # 접속 종료
         await self.api.websocket.close()
+        # await self.api.ws_접속해제()
 
         # 수신값 리턴
         return self.li_목록조회, self.li_요청실시간
 
-    def get_조건검색(self, n_검색식번호=0):
+    def get_조건검색(self, n_검색식번호=None):
         """ 조건검색에 등록된 대상종목 가져오기 """
         # 기준정보 정의
         dic_컬럼코드 = {'9001': '종목코드', '302': '종목명', '10': '현재가', '25': '전일대비기호', '11': '전일대비', '12': '등락율',
                     '13': '누적거래량', '16': '시가', '17': '고가', '18': '저가', 'jmcode': '종목코드'}
+        n_검색식번호_조회 = n_검색식번호 if n_검색식번호 is not None else 0
 
         # 조검검색 실행 - 조회 실패 시 5회 재실행
-        li_조건검색목록, li_대상종목 = (None, None)
+        li_조건검색목록, li_검색종목 = (None, None)
         for _ in range(5):
-            li_조건검색목록, li_대상종목 = asyncio.run(self.run_조건검색(n_검색식번호=n_검색식번호))
-            if len(li_대상종목) > 0:
+            li_조건검색목록, li_검색종목 = asyncio.run(self.run_조건검색(n_검색식번호=n_검색식번호_조회))
+            if li_검색종목 is None or len(li_검색종목) > 0:
                 break
             time.sleep(1)
 
@@ -308,11 +310,21 @@ class SimpleWebsocketAPI:
         df_조검검색목록.columns = ['검색식번호', '검색식명']
 
         # 데이터 처리 - 대상종목
-        df_대상종목 = pd.DataFrame(li_대상종목)
-        li_컬럼명 = [dic_컬럼코드[코드] for 코드 in df_대상종목.columns]
-        df_대상종목.columns = li_컬럼명
+        df_검색종목 = pd.DataFrame(li_검색종목) if li_검색종목 is not None else pd.DataFrame()
+        li_컬럼명 = [dic_컬럼코드[코드] for 코드 in df_검색종목.columns]
+        df_검색종목.columns = li_컬럼명
 
-        return df_조검검색목록, df_대상종목
+        # if n_검색식번호 is None:
+        #     return df_조검검색목록
+        # elif b_목록포함:
+        #     return df_조검검색목록, df_검색종목
+        # else:
+        #     return df_검색종목
+
+        if n_검색식번호 is None:
+            return df_조검검색목록
+        else:
+            return df_검색종목
 
 
 if __name__ == '__main__':
