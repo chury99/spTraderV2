@@ -6,7 +6,7 @@ import time
 import pandas as pd
 import multiprocessing as mp
 
-import ut.로그maker, ut.폴더manager, ut.파일manager
+import ut.설정manager, ut.로그maker, ut.폴더manager, ut.파일manager
 import collector.bot_정보수집, collector.bot_차트수집, collector.bot_캐시생성
 
 # noinspection NonAsciiCharacters,PyPep8Naming,SpellCheckingInspection
@@ -15,7 +15,8 @@ class LauncherCollector:
         # config 읽어 오기
         self.folder_프로젝트 = os.path.dirname(os.path.abspath(__file__))
         self.s_파일명 = os.path.basename(__file__).replace('.py', '')
-        dic_config = json.load(open(os.path.join(self.folder_프로젝트, 'config.json'), mode='rt', encoding='utf-8'))
+        # dic_config = json.load(open(os.path.join(self.folder_프로젝트, 'config.json'), mode='rt', encoding='utf-8'))
+        dic_config = ut.설정manager.ConfigManager().dic_config
 
         # 로그 설정
         log = ut.로그maker.LogMaker(s_파일명=self.s_파일명, s_로그명='로그이름_collector')

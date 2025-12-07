@@ -1,8 +1,8 @@
 {
-    "folder_work" : "/Users/ProjectWork/spTraderV2",
-    "folder_log" : "/Users/chury99/Library/Mobile Documents/com~apple~CloudDocs/python_log",
-    "folder_kakao" : "/Users/chury99/PycharmProjects/api-kakao",
-    "path_파이썬" : "/Users/chury99/PycharmProjects/spTraderV2/.venv/bin/pyton",
+    "folder_work_mac" : "/Users/ProjectWork/spTraderV2",
+    "folder_log_mac" : "/Users/chury99/Library/Mobile Documents/com~apple~CloudDocs/python_log",
+    "folder_kakao_mac" : "/Users/chury99/PycharmProjects/api-kakao",
+    "path_파이썬_mac" : "/Users/chury99/PycharmProjects/spTraderV2/.venv/bin/pyton",
     "로그이름_trader" : "sp2_trader",
     "로그이름_collector" : "sp2_collector",
     "로그이름_analyzer" : "sp2_analyzer",

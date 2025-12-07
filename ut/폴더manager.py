@@ -1,13 +1,16 @@
 import os
 import json
 
+import ut.설정manager
+
 
 # noinspection PyPep8Naming,NonAsciiCharacters,SpellCheckingInspection
 def define_폴더정보():
     # config 읽어 오기
     folder_베이스 = os.path.dirname(os.path.abspath(__file__))
     folder_프로젝트 = os.path.dirname(folder_베이스)
-    dic_config = json.load(open(os.path.join(folder_프로젝트, 'config.json'), mode='rt', encoding='utf-8'))
+    # dic_config = json.load(open(os.path.join(folder_프로젝트, 'config.json'), mode='rt', encoding='utf-8'))
+    dic_config = ut.설정manager.ConfigManager().dic_config
 
     # 기준정보 생성
     dic_폴더정보 = dict()
