@@ -40,9 +40,13 @@ class CollectorBot:
         self.folder_일봉 = os.path.join(self.folder_차트수집, '일봉')
         self.folder_분봉 = os.path.join(self.folder_차트수집, '분봉')
 
+        # 시작일자 정의
+        n_보관기간 = int(dic_config['파일보관기간(일)_collector'])
+        s_보관일자 = (pd.Timestamp.now() - pd.DateOffset(days=n_보관기간)).strftime('%Y%m%d')
+        self.s_시작일자 = s_시작일자 if s_시작일자 is not None else s_보관일자
+
         # 기준정보 정의
         self.s_오늘 = pd.Timestamp.now().strftime('%Y%m%d')
-        self.s_시작일자 = s_시작일자 if s_시작일자 is not None else '20250901'
 
         # 로그 기록
         self.make_로그(f'구동 시작')
@@ -245,11 +249,14 @@ class CollectorBot:
 
 def run():
     """ 실행 함수 """
-    c = CollectorBot(s_시작일자='20251001')
+    c = CollectorBot(s_시작일자=None)
     c.make_일봉캐시()
     c.make_분봉캐시()
     c.make_초봉캐시()
 
 
 if __name__ == '__main__':
-    run()
+    try:
+        run()
+    except KeyboardInterrupt:
+        print('\n### [ KeyboardInterrupt detected ] ###')
