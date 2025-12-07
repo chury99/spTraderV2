@@ -83,9 +83,10 @@ class CollectorBot:
             # 데이터 정리
             s_검색식명 = dic_번호2검색식명[s_검색식번호]
             b_데이터존재 = not df_검색종목.empty
-            df_검색종목 = df_검색종목 if b_데이터존재 else li_df조건검색[-1][-1:].copy()
+            # df_검색종목 = df_검색종목 if b_데이터존재 else li_df조건검색[-1][-1:].copy()
+            df_검색종목 = df_검색종목 if b_데이터존재 else pd.DataFrame()
             df_검색종목['종목코드'] = df_검색종목['종목코드'].str[1:]\
-                                    if b_데이터존재 else None
+                                    if b_데이터존재 else [None]
             df_검색종목['종목명'] = df_검색종목['종목코드'].apply(lambda x: dic_코드2종목명[x] if x in dic_코드2종목명 else None)\
                                     if b_데이터존재 else None
             df_검색종목['검색식번호'] = s_검색식번호
