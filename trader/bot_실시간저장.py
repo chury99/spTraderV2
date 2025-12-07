@@ -157,4 +157,7 @@ def run(queue_mp_실시간저장=None):
 
 
 if __name__ == '__main__':
-    run()
+    try:
+        run()
+    except KeyboardInterrupt:
+        print('\n### [ KeyboardInterrupt detected ] ###')

@@ -132,4 +132,7 @@ def run():
     a.find_상승시점()
 
 if __name__ == '__main__':
-    run()
+    try:
+        run()
+    except KeyboardInterrupt:
+        print('\n### [ KeyboardInterrupt detected ] ###')
