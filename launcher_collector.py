@@ -59,15 +59,18 @@ class LauncherCollector:
         dic_수집봇 = dict(s_타겟=collector.bot_차트수집.run, s_네임='bot_차트수집')
 
         # 실행 대기
+        dt_시작시각 = pd.Timestamp(self.s_종료시각) + pd.Timedelta(minutes=1)
         while True:
-            s_시작시각 = self.s_종료시각
-            if pd.Timestamp.now() >= pd.Timestamp(s_시작시각):
-                self.make_로그(f'{dic_수집봇['s_네임']} 구동 시작')
+            if pd.Timestamp.now() >= dt_시작시각:
+                self.make_로그(f'\n{dic_수집봇['s_네임']} 구동 시작')
                 break
             else:
-                s_현재시각 = pd.Timestamp.now().strftime('%H:%M:%S')
-                print(f'[{s_현재시각}] 실행대기중 - {s_시작시각} 실행 예정')
-                time.sleep(60)
+                dt_현재 = pd.Timestamp.now()
+                s_현재시각 = dt_현재.strftime('%H:%M:%S')
+                s_시작시각 = dt_시작시각.strftime('%H:%M:%S')
+                s_남은시간 = str(dt_시작시각 - dt_현재).split(' ')[-1].split('.')[0]
+                print(f'\r[{s_현재시각}] 실행시각 {s_시작시각} - {s_남은시간} 후 실행 예정', end='', flush=True)
+                time.sleep(1)
 
         # 프로세스 실행 - 비정상 종료 시 재실행
         dt_에러발생 = pd.Timestamp.now()
@@ -146,4 +149,7 @@ def run():
 
 
 if __name__ == '__main__':
-    run()
+    try:
+        run()
+    except KeyboardInterrupt:
+        print('\n### [ KeyboardInterrupt detected ] ###')
