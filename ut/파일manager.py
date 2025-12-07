@@ -100,16 +100,17 @@ class FileManager:
 
             # 파일 삭제
             li_삭제용량 = list()
-            for path_삭제대상 in li_삭제대상:
-                li_삭제용량.append(os.path.getsize(path_삭제대상))
-                os.remove(path_삭제대상)
+            li_삭제대상_파일 = [파일 for 파일 in li_삭제대상 if os.path.isfile(파일)]
+            for path_삭제대상_파일 in li_삭제대상_파일:
+                li_삭제용량.append(os.path.getsize(path_삭제대상_파일))
+                os.remove(path_삭제대상_파일)
 
             # 폴더 삭제 - 일자가 포함된 폴더
             li_일자폴더 = [폴더 for 폴더 in li_대상폴더 if len(re.findall(r'\d{8}', 폴더)) > 0]
             li_일자폴더_삭제대상 = [폴더 for 폴더 in li_일자폴더 if re.findall(r'\d{8}', 폴더)[0] < s_기준일자]
-            for path_삭제대상 in li_일자폴더_삭제대상:
+            for path_삭제대상_파일 in li_일자폴더_삭제대상:
                 try:
-                    os.rmdir(path_삭제대상)
+                    os.rmdir(path_삭제대상_파일)
                 except OSError:
                     pass
 

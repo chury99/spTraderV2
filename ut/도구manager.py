@@ -1,4 +1,6 @@
 import os
+import re
+
 import pandas as pd
 import sqlite3
 import json
@@ -58,7 +60,7 @@ def sql불러오기(path, s_테이블명=None, b_전체=False):
 
 
 # noinspection PyPep8Naming,SpellCheckingInspection,NonAsciiCharacters
-def sftp_동기화_파일명(folder_로컬, folder_서버, s_모드):
+def sftp_동기화_파일명(folder_로컬, folder_서버, s_모드, s_기준일=None):
     """ sftp 서버 접속 후 파일명 기준으로 동기화 """
     # 기준정보 정의
     folder_베이스 = os.path.dirname(os.path.abspath(__file__))
@@ -71,7 +73,7 @@ def sftp_동기화_파일명(folder_로컬, folder_서버, s_모드):
 
     # 서버 접속
     li_동기화파일명 = list()
-    with paramiko.SSHClient() as ssh:
+    with (paramiko.SSHClient() as ssh):
         # ssh 서버 연결 (알수없는 서버 경고 방지 포함)
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(hostname=dic_서버접속['hostname'], port=dic_서버접속['port'],
@@ -82,6 +84,12 @@ def sftp_동기화_파일명(folder_로컬, folder_서버, s_모드):
             # 폴더 내 파일 확인
             li_로컬파일 = sorted(파일 for 파일 in os.listdir(folder_로컬) if not 파일.startswith('.'))
             li_서버파일 = sorted(파일 for 파일 in sftp.listdir(folder_서버) if not 파일.startswith('.'))
+
+            # 기준일 적용
+            li_로컬파일 = [파일 for 파일 in li_로컬파일 if re.findall(r'\d{8}', 파일)[0] >= s_기준일]\
+                        if s_기준일 is not None else li_로컬파일
+            li_서버파일 = [파일 for 파일 in li_서버파일 if re.findall(r'\d{8}', 파일)[0] >= s_기준일]\
+                        if s_기준일 is not None else li_서버파일
 
             # 대상파일 확인
             li_대상파일 = [파일 for 파일 in li_로컬파일 if 파일 not in li_서버파일] if s_모드 == '로컬2서버' else\
