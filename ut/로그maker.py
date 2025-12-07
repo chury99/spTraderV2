@@ -3,7 +3,7 @@ import sys
 import json
 import pandas as pd
 
-import ut.설정manager
+import ut.도구manager
 
 
 # noinspection NonAsciiCharacters,PyPep8Naming,SpellCheckingInspection
@@ -14,7 +14,7 @@ class LogMaker:
         self.folder_프로젝트 = os.path.dirname(self.folder_베이스)
         self.s_파일명 = os.path.basename(__file__).replace('.py', '')
         # dic_config = json.load(open(os.path.join(self.folder_프로젝트, 'config.json'), mode='rt', encoding='utf-8'))
-        dic_config = ut.설정manager.ConfigManager().dic_config
+        dic_config = ut.도구manager.config로딩()
 
         # 기준정보 정의
         self.s_오늘 = pd.Timestamp.now().strftime('%Y%m%d')

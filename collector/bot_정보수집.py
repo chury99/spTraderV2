@@ -6,7 +6,7 @@ import re
 
 import pandas as pd
 
-import ut.설정manager, ut.로그maker, ut.폴더manager, ut.도구manager as Tool
+import ut.로그maker, ut.폴더manager, ut.도구manager as Tool
 import xapi.RestAPI_kiwoom, xapi.WebsocketAPI_kiwoom
 
 
@@ -18,7 +18,7 @@ class CollectorBot:
         self.folder_프로젝트 = os.path.dirname(self.folder_베이스)
         self.s_파일명 = os.path.basename(__file__).replace('.py', '')
         # dic_config = json.load(open(os.path.join(self.folder_프로젝트, 'config.json'), mode='rt', encoding='utf-8'))
-        dic_config = ut.설정manager.ConfigManager().dic_config
+        dic_config = ut.도구manager.config로딩()
 
         # 로그 설정
         log = ut.로그maker.LogMaker(s_파일명=self.s_파일명, s_로그명='로그이름_collector')

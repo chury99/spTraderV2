@@ -1,4 +1,5 @@
 import os
+import sys
 import re
 
 import pandas as pd
@@ -7,6 +8,27 @@ import json
 import paramiko
 from pandas.core.methods.selectn import SelectNSeries
 
+
+# noinspection PyPep8Naming,SpellCheckingInspection,NonAsciiCharacters
+def config로딩():
+    """ config.json 파일 확인 후 구동 중인 환경에 맞도록 변수 정의 """
+    # config 읽어 오기
+    folder_베이스 = os.path.dirname(os.path.abspath(__file__))
+    folder_프로젝트 = os.path.dirname(folder_베이스)
+    dic_config = json.load(open(os.path.join(folder_프로젝트, 'config.json'), mode='rt', encoding='utf-8'))
+
+    # 구동 중인 os 확인
+    dic_운영체제 = dict(darwin='mac', win32='win', linux='linux')
+    s_운영체제 = dic_운영체제[sys.platform]
+
+    # 대상항목 확인
+    li_대상항목 = [항목 for 항목 in dic_config.keys() if type(dic_config[항목]) == dict]
+
+    # config 정의
+    for s_대상항목 in li_대상항목:
+        dic_config[s_대상항목] = dic_config[s_대상항목][s_운영체제]
+
+    return dic_config
 
 # noinspection PyPep8Naming,SpellCheckingInspection,NonAsciiCharacters
 def df저장(df, path, li_타입=None):
