@@ -1,15 +1,19 @@
 {
     "folder_work" : {
-        "mac" : "/Users/ProjectWork/spTraderV2"
+        "mac" : "/Users/ProjectWork/spTraderV2",
+        "win" : "E:/ProjectWork/spTraderV2"
     },
     "folder_log" : {
-        "mac" : "/Users/chury99/Library/Mobile Documents/com~apple~CloudDocs/python_log"
+        "mac" : "/Users/chury99/Library/Mobile Documents/com~apple~CloudDocs/python_log",
+        "win" : "C:/Users/user/iCloudDrive/python_log"
     },
     "folder_kakao" : {
-        "mac" : "/Users/chury99/PycharmProjects/api-kakao"
+        "mac" : "/Users/chury99/PycharmProjects/api-kakao",
+        "win" : "C:/Users/user/PycharmProjects/api-kakao"
     },
     "path_파이썬" : {
-        "mac" : "/Users/chury99/PycharmProjects/spTraderV2/.venv/bin/pyton"
+        "mac" : "/Users/chury99/PycharmProjects/spTraderV2/.venv/bin/pyton",
+        "win" : "C:/Python313-64/python.exe"
     },
     "로그이름_trader" : "sp2_trader",
     "로그이름_collector" : "sp2_collector",
@@ -17,7 +21,7 @@
     "로그이름_rotator" : "sp2_collector",
     "로그이름_error" : "sp2_error",
     "파일보관기간(일)_log" : "365",
-    "파일보관기간(일)_analyzer" : "30",
+    "파일보관기간(일)_analyzer" : "180",
     "파일보관기간(일)_collector" : "30",
     "파일보관기간(일)_trader" : "30",
     "재구동_대기시간(초)" : "5",
