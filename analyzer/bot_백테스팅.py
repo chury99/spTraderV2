@@ -5,8 +5,10 @@ import time
 import re
 import multiprocessing as mp
 
-import matplotlib
-matplotlib.use('TkAgg')
+# win용 디버거 설정
+if sys.platform == 'win32':
+    import matplotlib
+    matplotlib.use('TkAgg')
 
 import numpy as np
 import pandas as pd
