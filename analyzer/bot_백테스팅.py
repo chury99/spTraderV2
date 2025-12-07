@@ -5,6 +5,9 @@ import time
 import re
 import multiprocessing as mp
 
+import matplotlib
+matplotlib.use('TkAgg')
+
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
