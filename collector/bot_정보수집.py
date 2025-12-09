@@ -62,7 +62,7 @@ class CollectorBot:
         # 로그 기록
         df_코스피 = df_전체종목[df_전체종목['시장']=='코스피']
         df_코스닥 = df_전체종목[df_전체종목['시장']=='코스닥']
-        self.make_로그(f'저장 완료 - {self.s_오늘}\n'
+        self.make_로그(f'{self.s_오늘} 완료\n'
                      f' - {len(df_전체종목):,.0f} 종목 - 코스피 {len(df_코스피):,.0f}, 코스닥 {len(df_코스닥):,.0f}')
 
     def get_조건검색(self):
@@ -109,7 +109,7 @@ class CollectorBot:
         Tool.df저장(df=df_조건검색, path=os.path.join(self.folder_조건검색, f'df_조건검색_{self.s_오늘}'))
 
         # 로그 기록
-        self.make_로그(f'저장 완료 - {self.s_오늘}\n'
+        self.make_로그(f'{self.s_오늘} 완료\n'
                      f' - {len(df_조건검색['검색식번호'].unique()):,.0f}개 검색식')
 
     def get_대상종목(self):
@@ -131,7 +131,7 @@ class CollectorBot:
             Tool.df저장(df=df_대상종목, path=os.path.join(self.folder_대상종목, f'df_대상종목_{s_일자}'))
 
             # 로그 기록
-            self.make_로그(f'저장 완료 - {s_일자}\n'
+            self.make_로그(f'{s_일자} 완료\n'
                          f' - {len(df_대상종목):,.0f} 종목')
 
 
