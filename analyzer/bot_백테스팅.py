@@ -89,6 +89,7 @@ class AnalyzerBot:
         for s_로컬폴더 in li_로컬폴더:
             # 기준정보 정의
             s_서버폴더 = f'{self.dic_서버폴더['server_work']}{s_로컬폴더.replace(self.folder_work, '')}'
+            s_서버폴더 = s_서버폴더.replace('\\', '/')
 
             # 파일 동기화
             li_동기화파일명_개별 = Tool.sftp_동기화_파일명(folder_로컬=s_로컬폴더, folder_서버=s_서버폴더, s_모드='서버2로컬',
@@ -566,7 +567,7 @@ class AnalyzerBot:
 def run():
     """ 실행 함수 """
     a = AnalyzerBot(b_디버그모드=True)
-    # ret = a.sync_소스파일()
+    ret = a.sync_소스파일()
     ret = [a.make_매매신호(n_봉수=봉수) for 봉수 in [1]]
     ret = [a.make_매수매도(n_봉수=봉수) for 봉수 in [1]]
     ret = [a.make_매매내역(n_봉수=봉수) for 봉수 in [1]]
