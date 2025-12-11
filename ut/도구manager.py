@@ -135,3 +135,63 @@ def sftp_동기화_파일명(folder_로컬, folder_서버, s_모드, s_기준일
                 li_동기화파일명.append(s_파일명)
 
     return li_동기화파일명
+
+
+# noinspection PyPep8Naming,SpellCheckingInspection,NonAsciiCharacters
+def sftp폴더동기화(folder_로컬, folder_서버, s_모드, s_기준일=None):
+    """ sftp 서버 접속 후 해당 폴더 동기화 - 하위폴더 포함, 파일 수정시간 기준 """
+    # 기준정보 정의
+    folder_베이스 = os.path.dirname(os.path.abspath(__file__))
+    folder_프로젝트 = os.path.dirname(folder_베이스)
+
+    # 서버정보 정의
+    dic_서버정보 = json.load(open(os.path.join(folder_프로젝트, 'server_info.json'), mode='rt', encoding='utf-8'))
+    dic_서버접속 = dic_서버정보['sftp']
+    dic_서버폴더 = dic_서버정보['folder']
+
+    # 서버 접속
+    li_동기화파일명 = list()
+    with paramiko.SSHClient() as ssh:
+        # ssh 서버 연결 (알수없는 서버 경고 방지 포함)
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(hostname=dic_서버접속['hostname'], port=dic_서버접속['port'],
+                    username=dic_서버접속['username'], password=dic_서버접속['password'])
+
+        # sftp 세션 시작
+        with ssh.open_sftp() as sftp:
+            # 하위 폴더 확인 - 서버 기준
+            li_서버폴더 = sorted(폴더.filename for 폴더 in sftp.listdir_attr(folder_서버) if paramiko.sftp_server.S_ISDIR(폴더.st_mode))
+
+
+            # 폴더 내 파일 확인
+            li_로컬파일 = sorted(파일 for 파일 in os.listdir(folder_로컬) if not 파일.startswith('.'))
+            li_서버파일 = sorted(파일 for 파일 in sftp.listdir(folder_서버) if not 파일.startswith('.'))
+
+            # 기준일 적용
+            li_로컬파일 = [파일 for 파일 in li_로컬파일 if re.findall(r'\d{8}', 파일)[0] >= s_기준일]\
+                        if s_기준일 is not None else li_로컬파일
+            li_서버파일 = [파일 for 파일 in li_서버파일 if re.findall(r'\d{8}', 파일)[0] >= s_기준일]\
+                        if s_기준일 is not None else li_서버파일
+
+            # 대상파일 확인
+            li_대상파일 = [파일 for 파일 in li_로컬파일 if 파일 not in li_서버파일] if s_모드 == '로컬2서버' else\
+                        [파일 for 파일 in li_서버파일 if 파일 not in li_로컬파일] if s_모드 == '서버2로컬' else list()
+
+            # 대상폴더 정의
+            folder_원본 = folder_로컬 if s_모드 == '로컬2서버' else folder_서버 if s_모드 == '서버2로컬' else None
+            folder_타겟 = folder_서버 if s_모드 == '로컬2서버' else folder_로컬 if s_모드 == '서버2로컬' else None
+
+            # 파일 복사
+            for s_파일명 in li_대상파일:
+                # 경로 정의
+                path_원본 = f'{folder_원본}/{s_파일명}'
+                path_타겟 = f'{folder_타겟}/{s_파일명}'
+
+                # 파일 복사
+                ret = sftp.put(path_원본, path_타겟) if s_모드 == '로컬2서버' else\
+                        sftp.get(path_원본, path_타겟) if s_모드 == '서버2로컬' else None
+
+                # 정보 등록
+                li_동기화파일명.append(s_파일명)
+
+    return li_동기화파일명
