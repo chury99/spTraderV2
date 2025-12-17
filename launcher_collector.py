@@ -6,8 +6,8 @@ import time
 import pandas as pd
 import multiprocessing as mp
 
-import ut.로그maker, ut.폴더manager, ut.파일manager
-import collector.bot_정보수집, collector.bot_차트수집, collector.bot_캐시생성
+import ut.로그maker, ut.폴더manager, ut.파일manager, ut.도구manager as Tool
+import collector.bot_정보수집, collector.bot_종목추천, collector.bot_차트수집, collector.bot_캐시생성
 
 # noinspection NonAsciiCharacters,PyPep8Naming,SpellCheckingInspection
 class LauncherCollector:
@@ -16,7 +16,7 @@ class LauncherCollector:
         self.folder_프로젝트 = os.path.dirname(os.path.abspath(__file__))
         self.s_파일명 = os.path.basename(__file__).replace('.py', '')
         # dic_config = json.load(open(os.path.join(self.folder_프로젝트, 'config.json'), mode='rt', encoding='utf-8'))
-        dic_config = ut.도구manager.config로딩()
+        dic_config = Tool.config로딩()
 
         # 로그 설정
         log = ut.로그maker.LogMaker(s_파일명=self.s_파일명, s_로그명='로그이름_collector')
@@ -54,24 +54,25 @@ class LauncherCollector:
         else:
             self.send_카톡_오류발생(s_프로세스명=p_수집봇.name, n_오류코드=p_수집봇.exitcode)
 
+    def run_종목추천(self):
+        """ 관심종목 모듈 실행 """
+        # 프로세스 정의
+        p_수집봇 = mp.Process(target=collector.bot_종목추천.run, name='bot_종목추천')
+
+        # 프로세스 실행 및 종료 대기
+        p_수집봇.start()
+        p_수집봇.join()
+
+        # 로그 기록
+        if p_수집봇.exitcode <= 0:
+            self.make_로그(f'{p_수집봇.name} 구동 완료')
+        else:
+            self.send_카톡_오류발생(s_프로세스명=p_수집봇.name, n_오류코드=p_수집봇.exitcode)
+
     def run_차트수집(self):
         """ 차트수집 모듈 실행 - 실시간 모듈 종료 후 바로 진행 """
         # 프로세스 정의
         dic_수집봇 = dict(s_타겟=collector.bot_차트수집.run, s_네임='bot_차트수집')
-
-        # 실행 대기
-        dt_시작시각 = pd.Timestamp(self.s_종료시각) + pd.Timedelta(minutes=1)
-        while True:
-            if pd.Timestamp.now() >= dt_시작시각:
-                self.make_로그(f'\n{dic_수집봇['s_네임']} 구동 시작')
-                break
-            else:
-                dt_현재 = pd.Timestamp.now()
-                s_현재시각 = dt_현재.strftime('%H:%M:%S')
-                s_시작시각 = dt_시작시각.strftime('%H:%M:%S')
-                s_남은시간 = str(dt_시작시각 - dt_현재).split(' ')[-1].split('.')[0]
-                print(f'\r[{s_현재시각}] 실행시각 {s_시작시각} - {s_남은시간} 후 실행 예정', end='', flush=True)
-                time.sleep(1)
 
         # 프로세스 실행 - 비정상 종료 시 재실행
         dt_에러발생 = pd.Timestamp.now()
@@ -140,13 +141,55 @@ class LauncherCollector:
         self.kakao.send_메세지(s_사용자='알림봇', s_수신인='여봉이', s_메세지=s_메세지)
 
 
+# noinspection NonAsciiCharacters,PyPep8Naming,SpellCheckingInspection
 def run():
     """ 실행 함수 """
+    # l = LauncherCollector()
+    # l.run_정보수집()
+    # l.run_차트수집()
+    # l.run_캐시생성()
+    # l.ut_파일정리()
+
+    # 시간 베이스 실행
     l = LauncherCollector()
-    l.run_정보수집()
-    l.run_차트수집()
-    l.run_캐시생성()
-    l.ut_파일정리()
+    b_즉시실행, b_1차실행, b_2차실행 = True, True, True
+    while True:
+        # 기준정보 정의
+        dt_현재시각 = pd.Timestamp.now()
+
+        # 즉시 실행
+        if b_즉시실행:
+            l.run_정보수집()
+            b_즉시실행 = False
+
+        # 1차 실행
+        dt_1차실행 = pd.Timestamp('14:00:00')
+        if dt_현재시각 >= dt_1차실행 and b_1차실행:
+            l.run_종목추천()
+            b_1차실행 = False
+
+        # 2차 실행
+        dt_2차실행 = pd.Timestamp(l.s_종료시각) + pd.Timedelta(minutes=1)
+        if dt_현재시각 >= dt_2차실행 and b_2차실행:
+            l.run_차트수집()
+            l.run_캐시생성()
+            l.ut_파일정리()
+            b_2차실행 = False
+
+        # 화면출력 업데이트
+        s_현재시각 = dt_현재시각.strftime('%H:%M:%S')
+        s_1차실행 = dt_1차실행.strftime('%H:%M:%S')
+        s_2차실행 = dt_2차실행.strftime('%H:%M:%S')
+        s_잔여_1차 = str(dt_1차실행 - dt_현재시각).split(' ')[-1].split('.')[0]
+        s_잔여_2차 = str(dt_2차실행 - dt_현재시각).split(' ')[-1].split('.')[0]
+        s_화면출력 = f'\r[{s_현재시각}] 1차({s_1차실행}) - {s_잔여_1차} 후 실행, 2차({s_2차실행}) - {s_잔여_2차} 후 실행' if b_1차실행 else\
+                    f'\r[{s_현재시각}] 1차({s_1차실행}) 실행완료, 2차({s_2차실행}) - {s_잔여_2차} 후 실행' if b_2차실행 else None
+        print(s_화면출력, end='', flush=True)
+        time.sleep(1)
+
+        # 실행 완료 시 루프 종료
+        if s_화면출력 is None:
+            break
 
 
 if __name__ == '__main__':
