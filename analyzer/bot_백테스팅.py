@@ -80,13 +80,14 @@ class AnalyzerBot:
     def sync_소스파일(self):
         """ 서버에 있는 소스파일을 로컬폴더로 동기화 """
         # 대상폴더 선정
-        li_대상폴더 = [self.folder_전체종목, self.folder_조회순위]
-        li_대상폴더_초봉 = [os.path.join(self.folder_차트캐시, 폴더) for 폴더 in os.listdir(self.folder_차트캐시) if '초봉' in 폴더]
-        li_로컬폴더 = sorted(li_대상폴더 + li_대상폴더_초봉)
+        # li_대상폴더 = [self.folder_전체종목, self.folder_조회순위]
+        # li_대상폴더_초봉 = [os.path.join(self.folder_차트캐시, 폴더) for 폴더 in os.listdir(self.folder_차트캐시) if '초봉' in 폴더]
+        # li_로컬폴더 = sorted(li_대상폴더 + li_대상폴더_초봉)
+        li_대상폴더 = [self.folder_전체종목, self.folder_조회순위, self.folder_차트캐시]
 
         # 폴더별 동기화
         li_동기화파일명 = list()
-        for s_로컬폴더 in li_로컬폴더:
+        for s_로컬폴더 in li_대상폴더:
             # 기준정보 정의
             s_서버폴더 = f'{self.dic_서버폴더['server_work']}{s_로컬폴더.replace(self.folder_work, '')}'
             s_서버폴더 = s_서버폴더.replace('\\', '/')
@@ -99,7 +100,9 @@ class AnalyzerBot:
             li_동기화파일명 = li_동기화파일명 + li_동기화파일명_개별
 
         # 로그 기록
-        self.make_로그(f'{len(li_동기화파일명):,.0f}개 파일 완료\n - {li_동기화파일명}')
+        s_동기화파일명 = ''.join(f' - {파일명}\n' for 파일명 in li_동기화파일명)
+        self.make_로그(f'{len(li_동기화파일명):,.0f}개 파일 완료\n'
+                      f'{s_동기화파일명}')
 
     def make_매매신호(self, n_봉수):
         """ 초봉 데이터 기준 매수/매도 신호 생성 """
