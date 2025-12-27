@@ -43,9 +43,6 @@ class AnalyzerBot:
         self.folder_전체종목 = dic_폴더정보['데이터|전체종목']
         self.folder_조회순위 = dic_폴더정보['데이터|조회순위']
         self.folder_백테스팅 = dic_폴더정보['분석|백테스팅']
-        os.makedirs(self.folder_차트캐시, exist_ok=True)
-        os.makedirs(self.folder_전체종목, exist_ok=True)
-        os.makedirs(self.folder_조회순위, exist_ok=True)
         os.makedirs(self.folder_백테스팅, exist_ok=True)
 
         # 추가 폴더 정의
@@ -62,8 +59,9 @@ class AnalyzerBot:
 
         # 기준정보 정의
         self.s_오늘 = pd.Timestamp.now().strftime('%Y%m%d')
+        self.s_시작일자 = '20251201'
         self.b_디버그모드 = b_디버그모드
-        self.n_멀티코어수 = mp.cpu_count() - 2
+        self.n_멀티코어수 = mp.cpu_count() - 3
         self.dic_args = dict()
 
         # 서버정보 정의
@@ -80,10 +78,7 @@ class AnalyzerBot:
     def sync_소스파일(self):
         """ 서버에 있는 소스파일을 로컬폴더로 동기화 """
         # 대상폴더 선정
-        # li_대상폴더 = [self.folder_전체종목, self.folder_조회순위]
-        # li_대상폴더_초봉 = [os.path.join(self.folder_차트캐시, 폴더) for 폴더 in os.listdir(self.folder_차트캐시) if '초봉' in 폴더]
-        # li_로컬폴더 = sorted(li_대상폴더 + li_대상폴더_초봉)
-        li_대상폴더 = [self.folder_전체종목, self.folder_조회순위, self.folder_차트캐시]
+        li_대상폴더 = [self.folder_차트캐시, self.folder_전체종목, self.folder_조회순위]
 
         # 폴더별 동기화
         li_동기화파일명 = list()
@@ -93,15 +88,13 @@ class AnalyzerBot:
             s_서버폴더 = s_서버폴더.replace('\\', '/')
 
             # 파일 동기화
-            # li_동기화파일명_개별 = Tool.sftp_동기화_파일명(folder_로컬=s_로컬폴더, folder_서버=s_서버폴더, s_모드='서버2로컬',
-            #                                         s_기준일='20251001')
             li_동기화파일명_개별 = Tool.sftp폴더동기화(folder_로컬=s_로컬폴더, folder_서버=s_서버폴더, s_모드='서버2로컬',
-                                                    s_기준일='20251001')
+                                          s_시작일자='20251001')
             li_동기화파일명 = li_동기화파일명 + li_동기화파일명_개별
 
         # 로그 기록
-        s_동기화파일명 = ''.join(f' - {파일명}\n' for 파일명 in li_동기화파일명)
-        self.make_로그(f'{len(li_동기화파일명):,.0f}개 파일 완료\n'
+        s_동기화파일명 = ''.join(f'\n - {파일명}' for 파일명 in li_동기화파일명)
+        self.make_로그(f'{len(li_동기화파일명):,.0f}개 파일 완료'
                       f'{s_동기화파일명}')
 
     def make_매매신호(self, n_봉수):
@@ -117,7 +110,7 @@ class AnalyzerBot:
                         if file_소스 in 파일 and f'{n_봉수}초봉' in 파일)
         li_완료일자 = [re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_타겟)
                         if file_타겟 in 파일 and f'{n_봉수}초봉'in 파일]
-        li_대상일자 = [일자 for 일자 in li_전체일자 if 일자 not in li_완료일자]
+        li_대상일자 = [일자 for 일자 in li_전체일자 if 일자 not in li_완료일자 and 일자 >= self.s_시작일자]
         li_대상일자 = li_대상일자[:2]
 
         # 일자별 매수매도 정보 생성
@@ -136,17 +129,29 @@ class AnalyzerBot:
             # 매개변수 정의 - 종목별 함수 전달용
             self.dic_args = dict(n_봉수=n_봉수, s_일자=s_일자, dic_초봉=dic_초봉, dic_코드2종목=dic_코드2종목, dic_1초봉=dic_1초봉,
                                  file_타겟=file_타겟)
+            li_매개변수 = list()
+            for s_종목코드 in li_대상종목:
+                dic_매개변수 = dict(s_종목코드=s_종목코드, s_종목명=dic_코드2종목[s_종목코드], n_봉수=n_봉수, s_일자=s_일자,
+                                folder_타겟=folder_타겟, file_타겟=file_타겟,
+                                df_초봉=dic_초봉.get(s_종목코드, pd.DataFrame()),
+                                df_1초봉=dic_1초봉.get(s_종목코드, pd.DataFrame()))
+                li_매개변수.append(dic_매개변수)
 
             # 종목별 매수매도 정보 생성
             li_df매매신호 = list()
             if self.b_디버그모드:
-                for s_종목코드 in tqdm(li_대상종목, desc=f'매수매도-{n_봉수}초봉-{s_일자}', file=sys.stdout):
-                    li_df매매신호.append(self._make_매매신호_종목(s_종목코드=s_종목코드))
+                # for s_종목코드 in tqdm(li_대상종목, desc=f'매수매도-{n_봉수}초봉-{s_일자}', file=sys.stdout):
+                #     li_df매매신호.append(self._make_매매신호_종목(s_종목코드=s_종목코드))
+                for dic_매개변수 in tqdm(li_매개변수, desc=f'매수매도-{n_봉수}초봉-{s_일자}', file=sys.stdout):
+                    li_df매매신호.append(self._make_매매신호_종목(dic_매개변수=dic_매개변수))
             else:
                 with mp.Pool(processes=self.n_멀티코어수) as pool:
-                    li_df매매신호 = list(tqdm(pool.imap(self._make_매매신호_종목, li_대상종목),
-                                          total=len(li_대상종목), desc=f'매수매도-{n_봉수}초봉-{s_일자}', file=sys.stdout))
-            dic_매매신호 = dict(zip(li_대상종목, li_df매매신호))
+                    # li_df매매신호 = list(tqdm(pool.imap(self._make_매매신호_종목, li_대상종목, chunksize=4),
+                    #                       total=len(li_대상종목), desc=f'매수매도-{n_봉수}초봉-{s_일자}', file=sys.stdout))
+                    li_df매매신호 = list(tqdm(pool.imap_unordered(self._make_매매신호_종목, li_매개변수),
+                                          total=len(li_매개변수), desc=f'매수매도-{n_봉수}초봉-{s_일자}', file=sys.stdout))
+            # dic_매매신호 = dict(zip(li_대상종목, li_df매매신호))
+            dic_매매신호 = dict(li_df매매신호)
 
             # 결과파일 저장
             pd.to_pickle(dic_매매신호, os.path.join(folder_타겟, f'{file_타겟}_{s_일자}_{n_봉수}초봉.pkl'))
@@ -309,7 +314,7 @@ class AnalyzerBot:
         """ 수익 요약 및 리포트 발행 """
         pass
 
-    def _make_매매신호_종목(self, s_종목코드):
+    def _make_매매신호_종목_벡터화(self, s_종목코드):
         """ 종목별 매수매도 정보 생성 후 리턴 """
         # 기준정보 정의
         file_타겟 = self.dic_args['file_타겟']
@@ -430,34 +435,52 @@ class AnalyzerBot:
 
         return df_매매신호
 
-    def _make_매매신호_종목_느린버전(self, s_종목코드):
+    # def _make_매매신호_종목(self, s_종목코드):
+    @staticmethod
+    def _make_매매신호_종목(dic_매개변수):
         """ 종목별 매수매도 정보 생성 후 리턴 """
+        # # 기준정보 정의
+        # file_타겟 = self.dic_args['file_타겟']
+        # n_봉수 = self.dic_args['n_봉수']
+        # s_일자 = self.dic_args['s_일자']
+        # dic_코드2종목 = self.dic_args['dic_코드2종목']
+        # dic_초봉 = self.dic_args['dic_초봉']
+        # dic_1초봉 = self.dic_args['dic_1초봉']
+        # s_종목명 = dic_코드2종목.get(s_종목코드, None)
+        # df_초봉 = dic_초봉.get(s_종목코드, pd.DataFrame())
+        # df_1초봉 = dic_1초봉.get(s_종목코드, pd.DataFrame())
+
         # 기준정보 정의
-        file_타겟 = self.dic_args['file_타겟']
-        n_봉수 = self.dic_args['n_봉수']
-        s_일자 = self.dic_args['s_일자']
-        dic_코드2종목 = self.dic_args['dic_코드2종목']
-        dic_초봉 = self.dic_args['dic_초봉']
-        dic_1초봉 = self.dic_args['dic_1초봉']
-        s_종목명 = dic_코드2종목.get(s_종목코드, None)
-        df_초봉 = dic_초봉.get(s_종목코드, pd.DataFrame())
-        df_1초봉 = dic_1초봉.get(s_종목코드, pd.DataFrame())
+        s_종목코드 = dic_매개변수['s_종목코드']
+        s_종목명 = dic_매개변수['s_종목명']
+        folder_타겟 = dic_매개변수['folder_타겟']
+        file_타겟 = dic_매개변수['file_타겟']
+        n_봉수 = dic_매개변수['n_봉수']
+        s_일자 = dic_매개변수['s_일자']
+        df_초봉 = dic_매개변수['df_초봉']
+        df_1초봉 = dic_매개변수['df_1초봉']
 
         # 종목별 args 생성
-        dic_args_종목 = self.dic_args.get(s_종목코드, dict())
-        dic_args_종목.update(s_종목코드= s_종목코드, s_종목명=s_종목명, n_봉수=n_봉수, s_일자=s_일자, df_초봉=df_초봉)
+        # dic_args_종목 = self.dic_args.get(s_종목코드, dict())
+        # dic_args_종목.update(s_종목코드= s_종목코드, s_종목명=s_종목명, n_봉수=n_봉수, s_일자=s_일자, df_초봉=df_초봉)
+        dic_args_종목 = dic_매개변수
 
         # 매수매도 정보 생성
         b_보유신호, b_매수신호, b_매도신호 = False, False, False
         dic_매매신호 = dict()
+        n_기준봉길이 = 1
         for dt_시점 in df_초봉.index:
             # 기준정보 확인
             s_시점 = dt_시점.strftime('%H:%M:%S')
             n_현재가 = df_1초봉.loc[dt_시점, '종가']
 
             # 기준봉 준비 - 현재시점 이전 봉 데이터
-            df_기준봉 = df_초봉[df_초봉.index < dt_시점].copy()
-            df_기준봉 = df_기준봉[-1:]
+            # df_기준봉 = df_초봉[df_초봉.index < dt_시점].copy()
+            # df_기준봉 = df_초봉.loc[:dt_시점].iloc[:-1]
+            # df_기준봉 = df_기준봉[-1:]
+            n_idx = df_초봉.index.get_loc(dt_시점)
+            if n_idx < n_기준봉길이: continue
+            df_기준봉 = df_초봉.iloc[n_idx - n_기준봉길이 : n_idx]
 
             # 매수 검증
             if not b_보유신호:
@@ -516,7 +539,7 @@ class AnalyzerBot:
             # 신호 및 정보 업데이트 - 보유신호 업데이트 후 매수/매도신호 초기화
             b_보유신호 = False if b_매도신호 else b_보유신호
             b_매수신호, b_매도신호 = False, False
-            self.dic_args[s_종목코드] = dic_args_종목
+            # self.dic_args[s_종목코드] = dic_args_종목
 
         # 결과 정리
         df_매매신호 = pd.DataFrame(dic_매매신호).sort_index()
@@ -524,12 +547,13 @@ class AnalyzerBot:
         df_매매신호 = df_매매신호.loc[:, li_컬럼명_앞 + [컬럼 for 컬럼 in df_매매신호.columns if 컬럼 not in li_컬럼명_앞]]
 
         # csv 저장
-        folder = os.path.join(f'{self.folder_매매신호}_종목별', f'매매신호_{s_일자}')
+        # folder = os.path.join(f'{self.folder_매매신호}_종목별', f'매매신호_{s_일자}')
+        folder = os.path.join(f'{folder_타겟}_종목별', f'매매신호_{s_일자}')
         os.makedirs(folder, exist_ok=True)
         df_매매신호.to_csv(os.path.join(folder, f'{file_타겟}_{s_일자}_{n_봉수}초봉_{s_종목코드}_{s_종목명}.csv'),
                             index=False, encoding='cp949')
 
-        return df_매매신호
+        return s_종목코드, df_매매신호
 
     def _report_매매이력(self, df_매매이력):
         """ 매매이력 데이터 기준으로 리포트 생성 후 저장 """
@@ -571,7 +595,7 @@ class AnalyzerBot:
 # noinspection PyNoneFunctionAssignment,NonAsciiCharacters
 def run():
     """ 실행 함수 """
-    a = AnalyzerBot(b_디버그모드=True)
+    a = AnalyzerBot(b_디버그모드=False)
     ret = a.sync_소스파일()
     ret = [a.make_매매신호(n_봉수=봉수) for 봉수 in [1]]
     ret = [a.make_매수매도(n_봉수=봉수) for 봉수 in [1]]

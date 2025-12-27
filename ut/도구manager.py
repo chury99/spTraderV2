@@ -138,7 +138,7 @@ def sftp_동기화_파일명(folder_로컬, folder_서버, s_모드, s_기준일
 
 
 # noinspection PyPep8Naming,SpellCheckingInspection,NonAsciiCharacters
-def sftp폴더동기화(folder_로컬, folder_서버, s_모드, s_기준일=None):
+def sftp폴더동기화(folder_로컬, folder_서버, s_모드, s_시작일자=None):
     """ sftp 서버 접속 후 해당 폴더 동기화 - 하위폴더 포함, 파일 수정시간 기준 """
     # 기준정보 정의
     folder_베이스 = os.path.dirname(os.path.abspath(__file__))
@@ -187,11 +187,11 @@ def sftp폴더동기화(folder_로컬, folder_서버, s_모드, s_기준일=None
                                     if not 파일.startswith('.') and os.path.isfile(os.path.join(s_로컬폴더, 파일)))
                 li_서버파일 = sorted(객체.filename for 객체 in sftp.listdir_attr(s_서버폴더)
                                     if not 객체.filename.startswith('.') and 객체.longname[0] == '-')
-                # 기준일 적용
-                li_로컬파일 = [파일 for 파일 in li_로컬파일 if re.findall(r'\d{8}', 파일)[0] >= s_기준일]\
-                                if s_기준일 is not None else li_로컬파일
-                li_서버파일 = [파일 for 파일 in li_서버파일 if re.findall(r'\d{8}', 파일)[0] >= s_기준일]\
-                                if s_기준일 is not None else li_서버파일
+                # 시작일자 적용
+                li_로컬파일 = [파일 for 파일 in li_로컬파일 if re.findall(r'\d{8}', 파일)[0] >= s_시작일자]\
+                                if s_시작일자 is not None else li_로컬파일
+                li_서버파일 = [파일 for 파일 in li_서버파일 if re.findall(r'\d{8}', 파일)[0] >= s_시작일자]\
+                                if s_시작일자 is not None else li_서버파일
                 # 대상파일 확인
                 li_대상파일 = li_로컬파일 if s_모드 == '로컬2서버' else li_서버파일 if s_모드 == '서버2로컬' else list()
                 if len(li_대상파일) == 0:
