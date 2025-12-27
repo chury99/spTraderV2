@@ -97,6 +97,10 @@ class AnalyzerBot:
         self.make_로그(f'{len(li_동기화파일명):,.0f}개 파일 완료'
                       f'{s_동기화파일명}')
 
+    def verify_일봉차트(self):
+        """ 일봉차트 기준으로 조건 확인후 대상종목 선정 """
+        pass
+
     def make_매매신호(self, n_봉수):
         """ 초봉 데이터 기준 매수/매도 신호 생성 """
         # 기준정보 정의
