@@ -41,16 +41,19 @@ class AnalyzerBot:
         self.folder_work = dic_폴더정보['folder_work']
         self.folder_차트캐시 = dic_폴더정보['데이터|차트캐시']
         self.folder_전체종목 = dic_폴더정보['데이터|전체종목']
+        self.folder_대상종목 = dic_폴더정보['데이터|대상종목']
         self.folder_조회순위 = dic_폴더정보['데이터|조회순위']
         self.folder_백테스팅 = dic_폴더정보['분석|백테스팅']
         os.makedirs(self.folder_백테스팅, exist_ok=True)
 
         # 추가 폴더 정의
-        self.folder_매매신호 = os.path.join(self.folder_백테스팅, '10_매매신호')
-        self.folder_매수매도 = os.path.join(self.folder_백테스팅, '20_매수매도')
-        self.folder_매매내역 = os.path.join(self.folder_백테스팅, '30_매매내역')
-        self.folder_수익내역 = os.path.join(self.folder_백테스팅, '40_수익내역')
-        self.folder_수익요약 = os.path.join(self.folder_백테스팅, '50_수익요약')
+        self.folder_대상선정 = os.path.join(self.folder_백테스팅, '10_대상선정')
+        self.folder_매매신호 = os.path.join(self.folder_백테스팅, '20_매매신호')
+        self.folder_매수매도 = os.path.join(self.folder_백테스팅, '30_매수매도')
+        self.folder_매매내역 = os.path.join(self.folder_백테스팅, '40_매매내역')
+        self.folder_수익내역 = os.path.join(self.folder_백테스팅, '50_수익내역')
+        self.folder_수익요약 = os.path.join(self.folder_백테스팅, '60_수익요약')
+        os.makedirs(self.folder_대상선정, exist_ok=True)
         os.makedirs(self.folder_매매신호, exist_ok=True)
         os.makedirs(self.folder_매수매도, exist_ok=True)
         os.makedirs(self.folder_매매내역, exist_ok=True)
@@ -78,7 +81,7 @@ class AnalyzerBot:
     def sync_소스파일(self):
         """ 서버에 있는 소스파일을 로컬폴더로 동기화 """
         # 대상폴더 선정
-        li_대상폴더 = [self.folder_차트캐시, self.folder_전체종목, self.folder_조회순위]
+        li_대상폴더 = [self.folder_차트캐시, self.folder_전체종목, self.folder_대상종목, self.folder_조회순위]
 
         # 폴더별 동기화
         li_동기화파일명 = list()
@@ -97,42 +100,107 @@ class AnalyzerBot:
         self.make_로그(f'{len(li_동기화파일명):,.0f}개 파일 완료'
                       f'{s_동기화파일명}')
 
-    def verify_일봉차트(self):
-        """ 일봉차트 기준으로 조건 확인후 대상종목 선정 """
-        pass
+    def pick_대상선정(self):
+        """ 초봉 데이터 수집된 종목 기준으로 일봉차트 확인하여 대상종목 선정 """
+        # 기준정보 정의
+        folder_소스 = os.path.join(self.folder_차트캐시, f'초봉1')
+        folder_타겟 = self.folder_대상선정
+        file_소스 = f'dic_차트캐시'
+        file_타겟 = f'df_대상선정'
+
+        # 대상일자 확인
+        li_전체일자 = sorted(re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_소스)
+                         if f'{file_소스}_1초봉' in 파일 and '.pkl' in 파일)
+        li_완료일자 = [re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_타겟)
+                   if file_타겟 in 파일 and '.pkl' in 파일]
+        li_대상일자 = [일자 for 일자 in li_전체일자 if 일자 not in li_완료일자]
+
+        # 일자별 매수매도 정보 생성
+        for s_일자 in li_대상일자:
+            # 소스파일 불러오기
+            dic_초봉 = pd.read_pickle(os.path.join(folder_소스, f'{file_소스}_1초봉_{s_일자}.pkl'))
+            li_대상종목_초봉 = sorted(dic_초봉.keys())
+
+            # 추가 파일 불러오기
+            dic_일봉 = pd.read_pickle(os.path.join(self.folder_차트캐시, '일봉1', f'dic_차트캐시_1일봉_{s_일자}.pkl'))
+
+            # 종목별 조건 확인
+            li_dic대상종목 = list()
+            for s_종목코드 in li_대상종목_초봉:
+                # 기준정보 정의
+                df_일봉 = dic_일봉[s_종목코드]
+                df_일봉['전일고가3봉'] = df_일봉['고가'].shift(1).rolling(window=3).max()
+                df_일봉['추세신호'] = df_일봉['종가'] > df_일봉['전일고가3봉']
+                if len(df_일봉) < 2: continue
+                dt_전일 = df_일봉.index[-2]
+                n_전일종가 = df_일봉.loc[dt_전일, '종가']
+                n_전일60 = df_일봉.loc[dt_전일, '종가ma60']
+                n_전일120 = df_일봉.loc[dt_전일, '종가ma120']
+                n_전일바디 = (n_전일종가 - df_일봉.loc[dt_전일, '시가']) / df_일봉.loc[dt_전일, '전일종가'] * 100
+
+                # 조건 확인 - 전일 기준
+                li_조건확인 = list()
+                li_조건확인.append(True if n_전일종가 > n_전일60 > n_전일120 else False)
+                li_조건확인.append(True if sum(df_일봉['추세신호'].values[-6:-1]) > 0 else False)
+
+                # 결과 생성
+                dic_대상종목 = df_일봉.iloc[-1].to_dict()
+                dic_대상종목.update(전일종가=n_전일종가, 전일60=n_전일60, 전일120=n_전일120, 전일바디=n_전일바디,
+                                전일조건=sum(li_조건확인)==len(li_조건확인), 전일정배열=li_조건확인[0], 전일추세5일=li_조건확인[1])
+                li_dic대상종목.append(dic_대상종목)
+
+            # df 생성
+            df_대상종목 = pd.DataFrame(li_dic대상종목) if len(li_dic대상종목) > 0 else pd.DataFrame()
+
+            # 결과파일 저장
+            Tool.df저장(df=df_대상종목, path=os.path.join(folder_타겟, f'{file_타겟}_{s_일자}'))
+
+            # 로그 기록
+            self.make_로그(f'{s_일자} 완료\n - 전체 {len(df_대상종목):,.0f}종목, 대상 {df_대상종목['전일조건'].sum():,.0f}종목')
 
     def make_매매신호(self, n_봉수):
         """ 초봉 데이터 기준 매수/매도 신호 생성 """
         # 기준정보 정의
-        folder_소스 = os.path.join(self.folder_차트캐시, f'초봉{n_봉수}')
+        folder_소스 = self.folder_대상선정
         folder_타겟 = self.folder_매매신호
-        file_소스 = f'dic_차트캐시'
+        file_소스 = f'df_대상선정'
         file_타겟 = f'dic_매매신호'
 
         # 대상일자 확인
         li_전체일자 = sorted(re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_소스)
-                        if file_소스 in 파일 and f'{n_봉수}초봉' in 파일)
+                        if file_소스 in 파일 and '.pkl' in 파일)
         li_완료일자 = [re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_타겟)
                         if file_타겟 in 파일 and f'{n_봉수}초봉'in 파일]
         li_대상일자 = [일자 for 일자 in li_전체일자 if 일자 not in li_완료일자 and 일자 >= self.s_시작일자]
-        li_대상일자 = li_대상일자[:2]
+        li_대상일자 = li_대상일자[:3]
 
         # 일자별 매수매도 정보 생성
         for s_일자 in li_대상일자:
+            # 소스파일 불러오기
+            df_대상선정 = pd.read_pickle(os.path.join(folder_소스, f'{file_소스}_{s_일자}.pkl'))
+            dic_코드2종목 = df_대상선정.set_index(['종목코드'])['종목명'].to_dict()
+            li_대상종목 = df_대상선정.loc[df_대상선정['전일조건'], '종목코드'].tolist()
+
             # 전체종목 불러오기
-            df_전체종목 = pd.read_pickle(os.path.join(self.folder_전체종목, f'df_전체종목_{s_일자}.pkl'))
-            dic_코드2종목 = df_전체종목.set_index(['종목코드'])['종목명'].to_dict()
+            # df_전체종목 = pd.read_pickle(os.path.join(self.folder_전체종목, f'df_전체종목_{s_일자}.pkl'))
+            # dic_코드2종목 = df_전체종목.set_index(['종목코드'])['종목명'].to_dict()
+
+            # 분석 대상종목 불러오기
+            df_대상종목 = pd.read_pickle(os.path.join(self.folder_대상종목, f'df_대상종목_{s_일자}.pkl'))
+            li_대상종목 = [종목 for 종목 in li_대상종목 if 종목 in df_대상종목['종목코드'].values]
 
             # 초봉캐시 불러오기
-            dic_초봉 = pd.read_pickle(os.path.join(folder_소스, f'{file_소스}_{n_봉수}초봉_{s_일자}.pkl'))
-            li_대상종목 = list(dic_초봉.keys())
+            folder_초봉 = os.path.join(self.folder_차트캐시, f'초봉{n_봉수}')
+            dic_초봉 = pd.read_pickle(os.path.join(folder_초봉, f'dic_차트캐시_{n_봉수}초봉_{s_일자}.pkl'))
+            # li_대상종목 = list(dic_초봉.keys())
 
             # 1초봉 불러오기
-            dic_1초봉 = pd.read_pickle(os.path.join(folder_소스, f'{file_소스}_1초봉_{s_일자}.pkl')) if n_봉수 > 1 else dic_초봉
+            dic_1초봉 = pd.read_pickle(os.path.join(self.folder_차트캐시, '초봉1', f'dic_차트캐시_1초봉_{s_일자}.pkl'))\
+                        if n_봉수 > 1 else dic_초봉
 
             # 매개변수 정의 - 종목별 함수 전달용
-            self.dic_args = dict(n_봉수=n_봉수, s_일자=s_일자, dic_초봉=dic_초봉, dic_코드2종목=dic_코드2종목, dic_1초봉=dic_1초봉,
-                                 file_타겟=file_타겟)
+            # self.dic_args = dict(n_봉수=n_봉수, s_일자=s_일자, dic_초봉=dic_초봉, dic_코드2종목=dic_코드2종목, dic_1초봉=dic_1초봉,
+            #                      file_타겟=file_타겟)
             li_매개변수 = list()
             for s_종목코드 in li_대상종목:
                 dic_매개변수 = dict(s_종목코드=s_종목코드, s_종목명=dic_코드2종목[s_종목코드], n_봉수=n_봉수, s_일자=s_일자,
@@ -146,14 +214,14 @@ class AnalyzerBot:
             if self.b_디버그모드:
                 # for s_종목코드 in tqdm(li_대상종목, desc=f'매수매도-{n_봉수}초봉-{s_일자}', file=sys.stdout):
                 #     li_df매매신호.append(self._make_매매신호_종목(s_종목코드=s_종목코드))
-                for dic_매개변수 in tqdm(li_매개변수, desc=f'매수매도-{n_봉수}초봉-{s_일자}', file=sys.stdout):
+                for dic_매개변수 in tqdm(li_매개변수, desc=f'매매신호-{n_봉수}초봉-{s_일자}', file=sys.stdout):
                     li_df매매신호.append(self._make_매매신호_종목(dic_매개변수=dic_매개변수))
             else:
                 with mp.Pool(processes=self.n_멀티코어수) as pool:
                     # li_df매매신호 = list(tqdm(pool.imap(self._make_매매신호_종목, li_대상종목, chunksize=4),
                     #                       total=len(li_대상종목), desc=f'매수매도-{n_봉수}초봉-{s_일자}', file=sys.stdout))
                     li_df매매신호 = list(tqdm(pool.imap_unordered(self._make_매매신호_종목, li_매개변수),
-                                          total=len(li_매개변수), desc=f'매수매도-{n_봉수}초봉-{s_일자}', file=sys.stdout))
+                                          total=len(li_매개변수), desc=f'매매신호-{n_봉수}초봉-{s_일자}', file=sys.stdout))
             # dic_매매신호 = dict(zip(li_대상종목, li_df매매신호))
             dic_매매신호 = dict(li_df매매신호)
 
@@ -318,126 +386,126 @@ class AnalyzerBot:
         """ 수익 요약 및 리포트 발행 """
         pass
 
-    def _make_매매신호_종목_벡터화(self, s_종목코드):
-        """ 종목별 매수매도 정보 생성 후 리턴 """
-        # 기준정보 정의
-        file_타겟 = self.dic_args['file_타겟']
-        n_봉수 = self.dic_args['n_봉수']
-        s_일자 = self.dic_args['s_일자']
-        dic_코드2종목 = self.dic_args['dic_코드2종목']
-        s_종목명 = dic_코드2종목.get(s_종목코드, None)
-        df_초봉 = self.dic_args['dic_초봉'].get(s_종목코드, pd.DataFrame())
-        df_1초봉 = self.dic_args['dic_1초봉'].get(s_종목코드, pd.DataFrame())
-
-        # 데이터 미존재 처리
-        if df_초봉.empty or df_1초봉.empty:
-            return pd.DataFrame()
-
-        # df_매매신호 생성
-        df_매매신호 = df_초봉.copy()
-        df_매매신호['일자'] = s_일자
-        df_매매신호['종목명'] = s_종목명
-        df_매매신호['현재가'] = df_1초봉['종가']
-        df_매매신호['현재시점'] = df_매매신호.index.strftime('%H:%M:%S')
-
-        # 매수매도 신호 생성
-        df_기준봉 = df_초봉.shift(1)
-        df_매매신호['dic_매수신호'] = [Logic.judge_매수신호(df_기준봉=df_기준봉.loc[[idx]])
-                                    for idx in df_매매신호.index]
-
-        df_매매신호['dic_매도신호'] = [Logic.judge_매도신호(df_기준봉=df_기준봉.loc[[idx]], dic_args=dic_args)
-                                    for idx in df_매매신호.index]
-
-        dic_args_종목.update(매도봇_s_탐색시간=s_시점, 매도봇_n_현재가=n_현재가,
-                           매도봇_s_매수시간=dic_args_종목['매수봇_s_주문시간'],
-                           매도봇_n_매수단가=dic_args_종목['매수봇_n_주문단가'],
-                           매도봇_n_보유수량=dic_args_종목['매수봇_n_주문수량'])
-
-
-        dic_매수신호_기준 = df_매매신호['dic_매수신호'].values[0]
-
-        dic_매도신호 = Logic.judge_매도신호(df_기준봉=df_기준봉, dic_args=dic_args)
-
-        # 매수매도 신호 상세 추가
-        for i, 신호종류 in enumerate(dic_매수신호_기준['매수봇_li_신호종류']):
-            df_매매신호[f'매수_{신호종류}'] = df_매매신호['dic_매수신호'].apply(lambda dic: dic['매수봇_li_매수신호'][i])
-
-        df_매매신호['매수신호'] = df_매매신호['dic_매수신호'].apply(lambda x: x['매수봇_b_매수신호'])
-
-        # 결과 정리
-        # dic_매매신호_추가 = dict(일자=s_일자, 종목명=s_종목명)
-        # dic_매매신호_추가.update({컬럼: df_초봉.loc[dt_시점, 컬럼] for 컬럼 in df_초봉.columns})
-        # dic_매매신호_추가.update({f'매수_{신호종류}': dic_args_종목['매수봇_li_매수신호'][i]
-        #                     for i, 신호종류 in enumerate(dic_args_종목['매수봇_li_신호종류'])})
-        dic_매매신호_추가.update({f'매도_{신호종류}': dic_args_종목['매도봇_li_매도신호'][i] if b_보유신호 else None
-                            for i, 신호종류 in enumerate(['매수금액', '매수횟수', '하락한계', '타임아웃'])})
-        dic_매매신호_추가.update(현재시점=s_시점, 현재가=n_현재가, 매수신호=b_매수신호, 매도신호=b_매도신호, 보유신호=b_보유신호)
-        dic_매매신호_추가.update(매수가=dic_args_종목['매도봇_n_매수단가'] if b_보유신호 else None,
-                           매도가=dic_args_종목['매도봇_n_주문단가'] if b_매도신호 else None,
-                           매수시간=dic_args_종목['매수봇_s_주문시간'] if b_보유신호 else None,
-                           매도시간=dic_args_종목['매도봇_s_주문시간'] if b_매도신호 else None,
-                           매도사유=dic_args_종목['매도봇_s_매도사유'] if b_매도신호 else None,
-                           수익률=dic_args_종목['매도봇_n_수익률'] if b_보유신호 else None,
-                           경과시간=dic_args_종목['매도봇_n_경과시간'] if b_보유신호 else None)
-        dic_매매신호_추가 = {key: [value] for key, value in dic_매매신호_추가.items()}
-        dic_매매신호 = {key: dic_매매신호.get(key, list()) + dic_매매신호_추가.get(key, list())
-                    for key in dic_매매신호_추가.keys()}
-
-
-        df_매매신호['매수신호'] = df_매매신호['매수봇_b_매수신호'] & (df_매매신호['현재시점'] < '15:00:00')
-
-        # 3. 보유/매수/매도 시점 정보 생성 (벡터화)
-        df_매매신호['매수블록'] = (df_매매신호['매수신호'] != df_매매신호['매수신호'].shift(1)).cumsum()
-        df_매매신호['보유신호'] = df_매매신호.groupby('매수블록')['매수신호'].transform('cummax')
-        df_매매신호.loc[df_매매신호['매수신호'], '보유신호'] = True
-
-        df_매매신호['매수시간'] = df_매매신호.groupby('매수블록')['현재시점'].transform('first')
-        df_매매신호['매수가'] = df_매매신호.groupby('매수블록')['현재가'].transform('first')
-        df_매매신호.loc[~df_매매신호['보유신호'], ['매수시간', '매수가']] = None
-
-        # 4. 매도신호 생성 (벡터화)
-        dic_args = {
-            'n_봉수': n_봉수,
-            '매도봇_s_매수시간': df_매매신호['매수시간'],
-            '매도봇_s_탐색시간': df_매매신호['현재시점'],
-            '매도봇_n_매수단가': df_매매신호['매수가'],
-            '매도봇_n_현재가': df_매매신호['현재가']
-        }
-        dic_매도신호 = Logic.judge_매도신호(df_기준봉=df_기준봉, dic_args=dic_args)
-        for key, value in dic_매도신호.items():
-            df_매매신호[key] = value
-
-        df_매매신호['매도신호'] = df_매매신호['매도봇_b_매도신호'] & df_매매신호['보유신호']
-
-        # 5. 매도 시점 정보 생성 (벡터화)
-        df_매매신호['매도블록'] = (df_매매신호['매도신호'] != df_매매신호['매도신호'].shift(1)).cumsum()
-        df_매매신호['매도시간'] = df_매매신호.loc[df_매매신호['매도신호']].groupby('매수블록')['현재시점'].transform('first')
-        df_매매신호['매도가'] = df_매매신호.loc[df_매매신호['매도신호']].groupby('매수블록')['현재가'].transform('first')
-        df_매매신호['매도사유'] = df_매매신호.loc[df_매매신호['매도신호']].groupby('매수블록')['매도봇_li_신호종류'].transform('first')
-
-        # 6. 최종 결과 정리
-        df_매매신호['매수시간'] = df_매매신호['매수시간'].ffill()
-        df_매매신호['매수가'] = df_매매신호['매수가'].ffill()
-        df_매매신호['매도시간'] = df_매매신호.groupby('매수블록')['매도시간'].ffill()
-        df_매매신호['매도가'] = df_매매신호.groupby('매수블록')['매도가'].ffill()
-        df_매매신호['매도사유'] = df_매매신호.groupby('매수블록')['매도사유'].ffill()
-
-        # 보유신호 재정의 (매도 발생 후에는 보유 해제)
-        df_매매신호['매도발생'] = df_매매신호.groupby('매수블록')['매도신호'].transform('cummax')
-        df_매매신호.loc[df_매매신호['매도발생'], '보유신호'] = False
-
-        # 컬럼 정리
-        df_매매신호['일자'] = s_일자
-        df_매매신호['종목명'] = s_종목명
-        li_컬럼명_앞 = ['일자', '종목코드', '종목명']
-        df_매매신호 = df_매매신호.loc[:, li_컬럼명_앞 + [컬럼 for 컬럼 in df_매매신호.columns if 컬럼 not in li_컬럼명_앞]]
-
-        # csv 저장
-        folder = os.path.join(f'{self.folder_매매신호}_종목별', f'매매신호_{s_일자}')
-        os.makedirs(folder, exist_ok=True)
-        df_매매신호.to_csv(os.path.join(folder, f'{file_타겟}_{s_일자}_{n_봉수}초봉_{s_종목코드}_{s_종목명}.csv'), index=False, encoding='cp949')
-
-        return df_매매신호
+    # def _make_매매신호_종목_벡터화(self, s_종목코드):
+    #     """ 종목별 매수매도 정보 생성 후 리턴 """
+    #     # 기준정보 정의
+    #     file_타겟 = self.dic_args['file_타겟']
+    #     n_봉수 = self.dic_args['n_봉수']
+    #     s_일자 = self.dic_args['s_일자']
+    #     dic_코드2종목 = self.dic_args['dic_코드2종목']
+    #     s_종목명 = dic_코드2종목.get(s_종목코드, None)
+    #     df_초봉 = self.dic_args['dic_초봉'].get(s_종목코드, pd.DataFrame())
+    #     df_1초봉 = self.dic_args['dic_1초봉'].get(s_종목코드, pd.DataFrame())
+    #
+    #     # 데이터 미존재 처리
+    #     if df_초봉.empty or df_1초봉.empty:
+    #         return pd.DataFrame()
+    #
+    #     # df_매매신호 생성
+    #     df_매매신호 = df_초봉.copy()
+    #     df_매매신호['일자'] = s_일자
+    #     df_매매신호['종목명'] = s_종목명
+    #     df_매매신호['현재가'] = df_1초봉['종가']
+    #     df_매매신호['현재시점'] = df_매매신호.index.strftime('%H:%M:%S')
+    #
+    #     # 매수매도 신호 생성
+    #     df_기준봉 = df_초봉.shift(1)
+    #     df_매매신호['dic_매수신호'] = [Logic.judge_매수신호(df_기준봉=df_기준봉.loc[[idx]])
+    #                                 for idx in df_매매신호.index]
+    #
+    #     df_매매신호['dic_매도신호'] = [Logic.judge_매도신호(df_기준봉=df_기준봉.loc[[idx]], dic_args=dic_args)
+    #                                 for idx in df_매매신호.index]
+    #
+    #     dic_args_종목.update(매도봇_s_탐색시간=s_시점, 매도봇_n_현재가=n_현재가,
+    #                        매도봇_s_매수시간=dic_args_종목['매수봇_s_주문시간'],
+    #                        매도봇_n_매수단가=dic_args_종목['매수봇_n_주문단가'],
+    #                        매도봇_n_보유수량=dic_args_종목['매수봇_n_주문수량'])
+    #
+    #
+    #     dic_매수신호_기준 = df_매매신호['dic_매수신호'].values[0]
+    #
+    #     dic_매도신호 = Logic.judge_매도신호(df_기준봉=df_기준봉, dic_args=dic_args)
+    #
+    #     # 매수매도 신호 상세 추가
+    #     for i, 신호종류 in enumerate(dic_매수신호_기준['매수봇_li_신호종류']):
+    #         df_매매신호[f'매수_{신호종류}'] = df_매매신호['dic_매수신호'].apply(lambda dic: dic['매수봇_li_매수신호'][i])
+    #
+    #     df_매매신호['매수신호'] = df_매매신호['dic_매수신호'].apply(lambda x: x['매수봇_b_매수신호'])
+    #
+    #     # 결과 정리
+    #     # dic_매매신호_추가 = dict(일자=s_일자, 종목명=s_종목명)
+    #     # dic_매매신호_추가.update({컬럼: df_초봉.loc[dt_시점, 컬럼] for 컬럼 in df_초봉.columns})
+    #     # dic_매매신호_추가.update({f'매수_{신호종류}': dic_args_종목['매수봇_li_매수신호'][i]
+    #     #                     for i, 신호종류 in enumerate(dic_args_종목['매수봇_li_신호종류'])})
+    #     dic_매매신호_추가.update({f'매도_{신호종류}': dic_args_종목['매도봇_li_매도신호'][i] if b_보유신호 else None
+    #                         for i, 신호종류 in enumerate(['매수금액', '매수횟수', '하락한계', '타임아웃'])})
+    #     dic_매매신호_추가.update(현재시점=s_시점, 현재가=n_현재가, 매수신호=b_매수신호, 매도신호=b_매도신호, 보유신호=b_보유신호)
+    #     dic_매매신호_추가.update(매수가=dic_args_종목['매도봇_n_매수단가'] if b_보유신호 else None,
+    #                        매도가=dic_args_종목['매도봇_n_주문단가'] if b_매도신호 else None,
+    #                        매수시간=dic_args_종목['매수봇_s_주문시간'] if b_보유신호 else None,
+    #                        매도시간=dic_args_종목['매도봇_s_주문시간'] if b_매도신호 else None,
+    #                        매도사유=dic_args_종목['매도봇_s_매도사유'] if b_매도신호 else None,
+    #                        수익률=dic_args_종목['매도봇_n_수익률'] if b_보유신호 else None,
+    #                        경과시간=dic_args_종목['매도봇_n_경과시간'] if b_보유신호 else None)
+    #     dic_매매신호_추가 = {key: [value] for key, value in dic_매매신호_추가.items()}
+    #     dic_매매신호 = {key: dic_매매신호.get(key, list()) + dic_매매신호_추가.get(key, list())
+    #                 for key in dic_매매신호_추가.keys()}
+    #
+    #
+    #     df_매매신호['매수신호'] = df_매매신호['매수봇_b_매수신호'] & (df_매매신호['현재시점'] < '15:00:00')
+    #
+    #     # 3. 보유/매수/매도 시점 정보 생성 (벡터화)
+    #     df_매매신호['매수블록'] = (df_매매신호['매수신호'] != df_매매신호['매수신호'].shift(1)).cumsum()
+    #     df_매매신호['보유신호'] = df_매매신호.groupby('매수블록')['매수신호'].transform('cummax')
+    #     df_매매신호.loc[df_매매신호['매수신호'], '보유신호'] = True
+    #
+    #     df_매매신호['매수시간'] = df_매매신호.groupby('매수블록')['현재시점'].transform('first')
+    #     df_매매신호['매수가'] = df_매매신호.groupby('매수블록')['현재가'].transform('first')
+    #     df_매매신호.loc[~df_매매신호['보유신호'], ['매수시간', '매수가']] = None
+    #
+    #     # 4. 매도신호 생성 (벡터화)
+    #     dic_args = {
+    #         'n_봉수': n_봉수,
+    #         '매도봇_s_매수시간': df_매매신호['매수시간'],
+    #         '매도봇_s_탐색시간': df_매매신호['현재시점'],
+    #         '매도봇_n_매수단가': df_매매신호['매수가'],
+    #         '매도봇_n_현재가': df_매매신호['현재가']
+    #     }
+    #     dic_매도신호 = Logic.judge_매도신호(df_기준봉=df_기준봉, dic_args=dic_args)
+    #     for key, value in dic_매도신호.items():
+    #         df_매매신호[key] = value
+    #
+    #     df_매매신호['매도신호'] = df_매매신호['매도봇_b_매도신호'] & df_매매신호['보유신호']
+    #
+    #     # 5. 매도 시점 정보 생성 (벡터화)
+    #     df_매매신호['매도블록'] = (df_매매신호['매도신호'] != df_매매신호['매도신호'].shift(1)).cumsum()
+    #     df_매매신호['매도시간'] = df_매매신호.loc[df_매매신호['매도신호']].groupby('매수블록')['현재시점'].transform('first')
+    #     df_매매신호['매도가'] = df_매매신호.loc[df_매매신호['매도신호']].groupby('매수블록')['현재가'].transform('first')
+    #     df_매매신호['매도사유'] = df_매매신호.loc[df_매매신호['매도신호']].groupby('매수블록')['매도봇_li_신호종류'].transform('first')
+    #
+    #     # 6. 최종 결과 정리
+    #     df_매매신호['매수시간'] = df_매매신호['매수시간'].ffill()
+    #     df_매매신호['매수가'] = df_매매신호['매수가'].ffill()
+    #     df_매매신호['매도시간'] = df_매매신호.groupby('매수블록')['매도시간'].ffill()
+    #     df_매매신호['매도가'] = df_매매신호.groupby('매수블록')['매도가'].ffill()
+    #     df_매매신호['매도사유'] = df_매매신호.groupby('매수블록')['매도사유'].ffill()
+    #
+    #     # 보유신호 재정의 (매도 발생 후에는 보유 해제)
+    #     df_매매신호['매도발생'] = df_매매신호.groupby('매수블록')['매도신호'].transform('cummax')
+    #     df_매매신호.loc[df_매매신호['매도발생'], '보유신호'] = False
+    #
+    #     # 컬럼 정리
+    #     df_매매신호['일자'] = s_일자
+    #     df_매매신호['종목명'] = s_종목명
+    #     li_컬럼명_앞 = ['일자', '종목코드', '종목명']
+    #     df_매매신호 = df_매매신호.loc[:, li_컬럼명_앞 + [컬럼 for 컬럼 in df_매매신호.columns if 컬럼 not in li_컬럼명_앞]]
+    #
+    #     # csv 저장
+    #     folder = os.path.join(f'{self.folder_매매신호}_종목별', f'매매신호_{s_일자}')
+    #     os.makedirs(folder, exist_ok=True)
+    #     df_매매신호.to_csv(os.path.join(folder, f'{file_타겟}_{s_일자}_{n_봉수}초봉_{s_종목코드}_{s_종목명}.csv'), index=False, encoding='cp949')
+    #
+    #     return df_매매신호
 
     # def _make_매매신호_종목(self, s_종목코드):
     @staticmethod
@@ -600,8 +668,9 @@ class AnalyzerBot:
 def run():
     """ 실행 함수 """
     a = AnalyzerBot(b_디버그모드=False)
-    ret = a.sync_소스파일()
-    ret = [a.make_매매신호(n_봉수=봉수) for 봉수 in [1]]
+    # ret = a.sync_소스파일()
+    # ret = a.pick_대상선정()
+    # ret = [a.make_매매신호(n_봉수=봉수) for 봉수 in [1]]
     ret = [a.make_매수매도(n_봉수=봉수) for 봉수 in [1]]
     ret = [a.make_매매내역(n_봉수=봉수) for 봉수 in [1]]
     ret = [a.make_수익내역(n_봉수=봉수) for 봉수 in [1]]
