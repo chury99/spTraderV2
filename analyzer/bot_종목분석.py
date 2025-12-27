@@ -5,6 +5,10 @@ import time
 import re
 import multiprocessing as mp
 
+# win용 디버거 설정
+if sys.platform == 'win32':
+    import matplotlib
+    matplotlib.use('TkAgg')
 
 import pandas as pd
 from fontTools.ttLib.tables.otTables import DeltaSetIndexMap
@@ -32,8 +36,10 @@ class AnalyzerBot:
 
         # 폴더 정의
         dic_폴더정보 = ut.폴더manager.define_폴더정보()
+        self.folder_work = dic_폴더정보['folder_work']
         self.folder_차트캐시 = dic_폴더정보['데이터|차트캐시']
         self.folder_전체종목 = dic_폴더정보['데이터|전체종목']
+        self.folder_대상종목 = dic_폴더정보['데이터|대상종목']
         self.folder_조건검색 = dic_폴더정보['데이터|조건검색']
         self.folder_조회순위 = dic_폴더정보['데이터|조회순위']
         self.folder_종목분석 = dic_폴더정보['분석|종목분석']
@@ -50,23 +56,50 @@ class AnalyzerBot:
         self.n_멀티코어수 = mp.cpu_count() - 2
         self.dic_매개변수 = dict()
 
+        # 서버정보 정의
+        dic_서버정보 = json.load(open(os.path.join(self.folder_프로젝트, 'server_info.json'), mode='rt', encoding='utf-8'))
+        self.dic_서버접속 = dic_서버정보.get('sftp')
+        self.dic_서버폴더 = dic_서버정보.get('folder')
+
         # 차트maker 정의
         self.chart = ut.차트maker.ChartMaker()
 
         # 로그 기록
         self.make_로그(f'구동 시작')
 
+    def sync_소스파일(self):
+        """ 서버에 있는 소스파일을 로컬폴더로 동기화 """
+        # 대상폴더 선정
+        li_대상폴더 = [self.folder_차트캐시, self.folder_전체종목, self.folder_대상종목, self.folder_조회순위]
+
+        # 폴더별 동기화
+        li_동기화파일명 = list()
+        for s_로컬폴더 in li_대상폴더:
+            # 기준정보 정의
+            s_서버폴더 = f'{self.dic_서버폴더['server_work']}{s_로컬폴더.replace(self.folder_work, '')}'
+            s_서버폴더 = s_서버폴더.replace('\\', '/')
+
+            # 파일 동기화
+            li_동기화파일명_개별 = Tool.sftp폴더동기화(folder_로컬=s_로컬폴더, folder_서버=s_서버폴더, s_모드='서버2로컬',
+                                          s_시작일자='20251001')
+            li_동기화파일명 = li_동기화파일명 + li_동기화파일명_개별
+
+        # 로그 기록
+        s_동기화파일명 = ''.join(f'\n - {파일명}' for 파일명 in li_동기화파일명)
+        self.make_로그(f'{len(li_동기화파일명):,.0f}개 파일 완료'
+                      f'{s_동기화파일명}')
+
     def find_상승후보(self):
-        """ 조회순위에 등장한 종목 중 추천종목에 포함된 종목 찾아서 저장 """
+        """ 수집된 초봉 데이터 기준으로 일봉차트 확인하여 대상종목 선정 """
         # 기준정보 정의
-        folder_소스 = self.folder_조회순위
-        file_소스 = f'df_조회순위'
+        folder_소스 = os.path.join(self.folder_차트캐시, f'초봉1')
+        file_소스 = f'dic_차트캐시'
         folder_타겟 = os.path.join(self.folder_종목분석, '10_상승후보')
         file_타겟 = f'df_상승후보'
         os.makedirs(folder_타겟, exist_ok=True)
 
         # 대상일자 확인
-        li_전체일자 = sorted(re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_소스) if '.csv' in 파일)
+        li_전체일자 = sorted(re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_소스) if '.pkl' in 파일)
         li_전체일자 = [일자 for 일자 in li_전체일자 if 일자 >= self.s_시작일자 and 일자 != self.s_오늘]
         li_완료일자 = [re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_타겟) if '.pkl' in 파일]
         li_대상일자 = [일자 for 일자 in li_전체일자 if 일자 not in li_완료일자]
@@ -74,37 +107,55 @@ class AnalyzerBot:
         # 일자별 데이터 생성
         for s_일자 in li_대상일자:
             # 소스파일 불러오기
-            df_조회순위 = pd.read_csv(os.path.join(folder_소스, f'{file_소스}_{s_일자}.csv'), encoding='cp949', dtype=str)
-            dic_코드2종목 = df_조회순위.drop_duplicates('종목코드').set_index('종목코드')['종목명'].to_dict()
-            li_조회순위 = df_조회순위['종목코드'].unique().tolist()
+            dic_초봉 = pd.read_pickle(os.path.join(folder_소스, f'{file_소스}_1초봉_{s_일자}.pkl'))
+            li_대상종목_초봉 = sorted(dic_초봉.keys())
 
-            # 추천종목 불러오기
-            li_일자 = [re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(self.folder_조건검색) if '.pkl' in 파일]
-            s_기준일자_추천종목 = min(일자 for 일자 in li_일자 if 일자 >= s_일자) if max(li_일자) >= s_일자 else max(li_일자)
-            df_조건검색 = pd.read_pickle(os.path.join(self.folder_조건검색, f'df_조건검색_{s_기준일자_추천종목}.pkl'))
-            li_추천종목 = df_조건검색[df_조건검색['검색식명'] == '거북이추천']['종목코드'].tolist()
+            # 일봉 파일 불러오기
+            dic_일봉 = pd.read_pickle(os.path.join(self.folder_차트캐시, '일봉1', f'dic_차트캐시_1일봉_{s_일자}.pkl'))
 
-            # 후보종목 생성
+            # 종목별 조건 확인
             li_dic상승후보 = list()
-            li_상승후보 = [종목 for 종목 in li_조회순위 if 종목 in li_추천종목]
-            for s_종목코드 in li_상승후보:
-                dic_상승후보 = dict(등장일자=s_일자, 종목코드=s_종목코드, 종목명=dic_코드2종목[s_종목코드])
+            for s_종목코드 in li_대상종목_초봉:
+                # 기준정보 정의
+                df_일봉 = dic_일봉[s_종목코드]
+                df_일봉['전일고가3봉'] = df_일봉['고가'].shift(1).rolling(window=3).max()
+                df_일봉['추세신호'] = df_일봉['종가'] > df_일봉['전일고가3봉']
+                if len(df_일봉) < 2: continue
+                dt_전일 = df_일봉.index[-2]
+                n_전일종가 = df_일봉.loc[dt_전일, '종가']
+                n_전일60 = df_일봉.loc[dt_전일, '종가ma60']
+                n_전일120 = df_일봉.loc[dt_전일, '종가ma120']
+                n_전일바디 = (n_전일종가 - df_일봉.loc[dt_전일, '시가']) / df_일봉.loc[dt_전일, '전일종가'] * 100
+
+                # 조건 확인 - 전일 기준
+                li_조건확인 = list()
+                li_조건확인.append(True if n_전일종가 > n_전일60 > n_전일120 else False)
+                li_조건확인.append(True if sum(df_일봉['추세신호'].values[-6:-1]) > 0 else False)
+
+                # 결과 생성
+                dic_상승후보 = df_일봉.iloc[-1].to_dict()
+                dic_상승후보.update(전일종가=n_전일종가, 전일60=n_전일60, 전일120=n_전일120, 전일바디=n_전일바디,
+                                전일조건=sum(li_조건확인)==len(li_조건확인), 전일정배열=li_조건확인[0], 전일추세5일=li_조건확인[1])
                 li_dic상승후보.append(dic_상승후보)
+
+            # df 생성
             df_상승후보 = pd.DataFrame(li_dic상승후보) if len(li_dic상승후보) > 0 else pd.DataFrame()
+            df_상승후보_후보만 = df_상승후보.loc[(df_상승후보['전일조건'])
+                                                & (df_상승후보['전일바디'] > 0) & (df_상승후보['전일바디'] < 2)]
 
             # 데이터 저장
             Tool.df저장(df=df_상승후보, path=os.path.join(folder_타겟, f'{file_타겟}_{s_일자}'))
 
             # 로그 기록
-            self.make_로그(f'{s_일자} 완료 - {len(df_상승후보):,.0f} 종목')
+            self.make_로그(f'{s_일자} 완료\n - 전체 {len(df_상승후보):,.0f}종목, 상승후보 {len(df_상승후보_후보만):,.0f}종목')
 
-    def make_매수신호(self, n_포함일수=5):
-        """ 상승후보 종목 대상으로 매수신호 확인 후 저장 """
+    def make_매매신호(self, n_포함일수=5):
+        """ 상승후보 종목 대상으로 일봉기준 매매신호 생성 후 저장 """
         # 기준정보 정의
         folder_소스 = os.path.join(self.folder_종목분석, '10_상승후보')
         file_소스 = f'df_상승후보'
-        folder_타겟 = os.path.join(self.folder_종목분석, '20_매수신호')
-        file_타겟 = f'df_매수신호'
+        folder_타겟 = os.path.join(self.folder_종목분석, '20_매매신호')
+        file_타겟 = f'df_매매신호'
         os.makedirs(folder_타겟, exist_ok=True)
 
         # 대상일자 확인
@@ -115,17 +166,26 @@ class AnalyzerBot:
         # 일자별 데이터 생성
         for s_일자 in li_대상일자:
             # 소스파일 불러오기
-            li_파일 = sorted(파일 for 파일 in os.listdir(folder_소스)
-                                if '.pkl' in 파일 and re.findall(r'\d{8}', 파일)[0] <= s_일자)[-n_포함일수:]
-            li_df상승후보 = [pd.read_pickle(os.path.join(folder_소스, 파일)) for 파일 in li_파일]
-            df_상승후보 = pd.concat(li_df상승후보, axis=0).drop_duplicates(subset='종목코드', keep='last')
-
-            # 기준정보 생성
+            df_상승후보 = pd.read_pickle(os.path.join(folder_소스, f'{file_소스}_{s_일자}.pkl'))
             dic_코드2종목 = df_상승후보.set_index(['종목코드'])['종목명'].to_dict()
-            dic_코드2등장일자 = df_상승후보.set_index(['종목코드'])['등장일자'].to_dict()
+            df_후보만 = df_상승후보.loc[(df_상승후보['전일조건']) & (df_상승후보['전일바디'] > 0) & (df_상승후보['전일바디'] < 2)]
+            li_상승후보 = df_후보만['종목코드'].tolist()
 
             # 일봉 불러오기
             dic_일봉 = pd.read_pickle(os.path.join(self.folder_차트캐시, '일봉1', f'dic_차트캐시_1일봉_{s_일자}.pkl'))
+
+            # 종목별 매매신호 생성 - 시가매수, 종가매도, 손실시 최대 5일 보유
+            li_dic매매신호 = list()
+            for s_종목코드 in li_상승후보:
+                # 기준정보 정의
+                df_일봉 = dic_일봉[s_종목코드]
+                dt_오늘 = df_일봉.index[-1]
+                n_시가 = df_일봉.loc[dt_오늘, '시가']
+                n_고가 = df_일봉.loc[dt_오늘, '고가']
+                n_저가 = df_일봉.loc[dt_오늘, '저가']
+                n_종가 = df_일봉.loc[dt_오늘, '종가']
+                pass
+
 
             # 매수신호 생성
             li_dic매수신호 = list()
@@ -387,8 +447,9 @@ class AnalyzerBot:
 def run():
     """ 실행 함수 """
     a = AnalyzerBot(b_디버그모드=True, s_시작일자=None)
-    a.find_상승후보()
-    a.make_매수신호()
+    # a.sync_소스파일()
+    # a.find_상승후보()
+    a.make_매매신호()
     a.verify_수익검증()
     # a.verify_과거실적()
     # a.detect_상승후보_누적()
