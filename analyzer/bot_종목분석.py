@@ -24,8 +24,7 @@ class AnalyzerBot:
         self.folder_베이스 = os.path.dirname(os.path.abspath(__file__))
         self.folder_프로젝트 = os.path.dirname(self.folder_베이스)
         self.s_파일명 = os.path.basename(__file__).replace('.py', '')
-        # dic_config = json.load(open(os.path.join(self.folder_프로젝트, 'config.json'), mode='rt', encoding='utf-8'))
-        dic_config = ut.도구manager.config로딩()
+        dic_config = Tool.config로딩()
 
         # 로그 설정
         log = ut.로그maker.LogMaker(s_파일명=self.s_파일명, s_로그명='로그이름_analyzer')
@@ -90,34 +89,33 @@ class AnalyzerBot:
     def find_상승후보(self):
         """ 수집된 조회순위 데이터 기준으로 일봉차트 확인하여 대상종목 선정 """
         # 기준정보 정의
-        # folder_소스 = os.path.join(self.folder_차트캐시, f'초봉1')
-        # file_소스 = f'dic_차트캐시'
-        folder_소스 = self.folder_조회순위
-        file_소스 = f'df_조회순위'
+        folder_소스 = os.path.join(self.folder_차트캐시, f'일봉1')
+        file_소스 = f'dic_차트캐시'
         folder_타겟 = os.path.join(self.folder_종목분석, '10_상승후보')
         file_타겟 = f'df_상승후보'
         os.makedirs(folder_타겟, exist_ok=True)
 
         # 대상일자 확인
-        li_전체일자 = sorted(re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_소스) if '.csv' in 파일)
-        li_전체일자 = [일자 for 일자 in li_전체일자 if 일자 >= self.s_시작일자 and 일자 != self.s_오늘]
+        li_전체일자 = sorted(re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_소스) if '.pkl' in 파일)
+        li_전체일자 = [일자 for 일자 in li_전체일자 if 일자 >= self.s_시작일자]
         li_완료일자 = [re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_타겟) if '.pkl' in 파일]
         li_대상일자 = [일자 for 일자 in li_전체일자 if 일자 not in li_완료일자]
 
         # 일자별 데이터 생성
         for s_일자 in li_대상일자:
             # 소스파일 불러오기
-            # dic_초봉 = pd.read_pickle(os.path.join(folder_소스, f'{file_소스}_1초봉_{s_일자}.pkl'))
-            # li_대상종목 = sorted(dic_초봉.keys())
-            df_조회순위 = pd.read_csv(os.path.join(folder_소스, f'{file_소스}_{s_일자}.csv'), encoding='cp949', dtype=str)
+            dic_일봉 = pd.read_pickle(os.path.join(folder_소스, f'{file_소스}_1일봉_{s_일자}.pkl'))
+
+            # 조회순위 불러오기
+            path_조회순위 = os.path.join(self.folder_조회순위, f'df_조회순위_{s_일자}.csv')
+            df_조회순위 = pd.read_csv(path_조회순위, encoding='cp949', dtype=str)
             li_대상종목 = sorted(df_조회순위.dropna(subset='종목코드')['종목코드'].unique().tolist())
 
-            # 일봉 파일 불러오기
-            path_일봉 = os.path.join(self.folder_차트캐시, '일봉1', f'dic_차트캐시_1일봉_{s_일자}.pkl')
-            if os.path.exists(path_일봉):
-                dic_일봉 = pd.read_pickle(path_일봉)
-            else:
-                continue
+            # 분석대상종목 불러오기
+            path_분석대상 = os.path.join(self.folder_대상종목, f'df_대상종목_{s_일자}.pkl')
+            df_분석대상 = pd.read_pickle(path_분석대상) if os.path.exists(path_분석대상) else pd.DataFrame()
+            li_대상종목 = [종목 for 종목 in li_대상종목 if 종목 in df_분석대상['종목코드'].values]\
+                        if len(df_분석대상) > 0 else li_대상종목
 
             # 종목별 조건 확인
             li_dic상승후보 = list()
@@ -173,7 +171,6 @@ class AnalyzerBot:
         for s_일자 in li_대상일자:
             # 소스파일 불러오기
             df_상승후보 = pd.read_pickle(os.path.join(folder_소스, f'{file_소스}_{s_일자}.pkl'))
-            # dic_코드2종목 = df_상승후보.set_index(['종목코드'])['종목명'].to_dict()
             df_후보만 = df_상승후보.loc[(df_상승후보['전일조건']) & (df_상승후보['전일바디'] > 0) & (df_상승후보['전일바디'] < 2)]
             li_상승후보 = df_후보만['종목코드'].tolist()
 
