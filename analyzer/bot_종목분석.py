@@ -88,16 +88,18 @@ class AnalyzerBot:
                       f'{s_동기화파일명}')
 
     def find_상승후보(self):
-        """ 수집된 초봉 데이터 기준으로 일봉차트 확인하여 대상종목 선정 """
+        """ 수집된 조회순위 데이터 기준으로 일봉차트 확인하여 대상종목 선정 """
         # 기준정보 정의
-        folder_소스 = os.path.join(self.folder_차트캐시, f'초봉1')
-        file_소스 = f'dic_차트캐시'
+        # folder_소스 = os.path.join(self.folder_차트캐시, f'초봉1')
+        # file_소스 = f'dic_차트캐시'
+        folder_소스 = self.folder_조회순위
+        file_소스 = f'df_조회순위'
         folder_타겟 = os.path.join(self.folder_종목분석, '10_상승후보')
         file_타겟 = f'df_상승후보'
         os.makedirs(folder_타겟, exist_ok=True)
 
         # 대상일자 확인
-        li_전체일자 = sorted(re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_소스) if '.pkl' in 파일)
+        li_전체일자 = sorted(re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_소스) if '.csv' in 파일)
         li_전체일자 = [일자 for 일자 in li_전체일자 if 일자 >= self.s_시작일자 and 일자 != self.s_오늘]
         li_완료일자 = [re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_타겟) if '.pkl' in 파일]
         li_대상일자 = [일자 for 일자 in li_전체일자 if 일자 not in li_완료일자]
@@ -105,15 +107,21 @@ class AnalyzerBot:
         # 일자별 데이터 생성
         for s_일자 in li_대상일자:
             # 소스파일 불러오기
-            dic_초봉 = pd.read_pickle(os.path.join(folder_소스, f'{file_소스}_1초봉_{s_일자}.pkl'))
-            li_대상종목_초봉 = sorted(dic_초봉.keys())
+            # dic_초봉 = pd.read_pickle(os.path.join(folder_소스, f'{file_소스}_1초봉_{s_일자}.pkl'))
+            # li_대상종목 = sorted(dic_초봉.keys())
+            df_조회순위 = pd.read_csv(os.path.join(folder_소스, f'{file_소스}_{s_일자}.csv'), encoding='cp949', dtype=str)
+            li_대상종목 = sorted(df_조회순위.dropna(subset='종목코드')['종목코드'].unique().tolist())
 
             # 일봉 파일 불러오기
-            dic_일봉 = pd.read_pickle(os.path.join(self.folder_차트캐시, '일봉1', f'dic_차트캐시_1일봉_{s_일자}.pkl'))
+            path_일봉 = os.path.join(self.folder_차트캐시, '일봉1', f'dic_차트캐시_1일봉_{s_일자}.pkl')
+            if os.path.exists(path_일봉):
+                dic_일봉 = pd.read_pickle(path_일봉)
+            else:
+                continue
 
             # 종목별 조건 확인
             li_dic상승후보 = list()
-            for s_종목코드 in tqdm(li_대상종목_초봉, desc=f'상승후보-{s_일자}', file=sys.stdout):
+            for s_종목코드 in li_대상종목:
                 # 기준정보 정의
                 df_일봉 = dic_일봉[s_종목코드]
                 df_일봉['전일고가3봉'] = df_일봉['고가'].shift(1).rolling(window=3).max()
