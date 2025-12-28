@@ -164,7 +164,7 @@ def run_조회순위():
 
 if __name__ == '__main__':
     try:
-        # run_거북이()
+        run_거북이()
         run_조회순위()
     except KeyboardInterrupt:
         print('\n### [ KeyboardInterrupt detected ] ###')
