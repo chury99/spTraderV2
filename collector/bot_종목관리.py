@@ -28,11 +28,7 @@ class CollectorBot:
         # 폴더 정의
         dic_폴더정보 = ut.폴더manager.define_폴더정보()
         self.folder_차트캐시 = dic_폴더정보['데이터|차트캐시']
-        # self.folder_전체종목 = dic_폴더정보['데이터|전체종목']
         self.folder_조건검색 = dic_폴더정보['데이터|조건검색']
-        # self.folder_조회순위 = dic_폴더정보['데이터|조회순위']
-        # self.folder_대상종목 = dic_폴더정보['데이터|대상종목']
-        # self.folder_종목추천 = dic_폴더정보['데이터|종목추천']
         self.folder_종목관리 = dic_폴더정보['데이터|종목관리']
         os.makedirs(self.folder_종목관리, exist_ok=True)
 
@@ -51,7 +47,6 @@ class CollectorBot:
     def check_손절신호(self):
         """ 보유종목 중 손절이 필요한 종목 찾아서 카톡 발송 """
         # 보유종목 가져오기 - 조건검색 활용
-        # collector.bot_정보수집.CollectorBot().get_조건검색()
         df_조건검색 = pd.read_pickle(os.path.join(self.folder_조건검색, f'df_조건검색_{self.s_오늘}.pkl'))
         df_보유종목 = df_조건검색.loc[df_조건검색['검색식명'] == '보유종목']
 
@@ -95,7 +90,7 @@ class CollectorBot:
         Tool.df저장(df=df_손절신호, path=os.path.join(folder_타겟, f'df_종목관리_손절신호_{self.s_오늘}'))
 
         # 카톡송부
-        s_메세지 = f'## [{self.s_오늘}] 손절종목(시가정리) {len(li_손절종목)}개 ##'
+        s_메세지 = f'# [{self.s_오늘}] 손절종목(시가정리) {len(li_손절종목)}개 #'
         for s_종목코드 in li_손절종목:
             s_메세지 = s_메세지 + f'\n  {dic_코드2종목명[s_종목코드]}({s_종목코드})'
         self.kakao.send_메세지(s_사용자='알림봇', s_수신인='여봉이', s_메세지=s_메세지)
