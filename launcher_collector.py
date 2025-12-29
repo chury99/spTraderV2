@@ -7,7 +7,7 @@ import pandas as pd
 import multiprocessing as mp
 
 import ut.로그maker, ut.폴더manager, ut.파일manager, ut.도구manager as Tool
-import collector.bot_정보수집, collector.bot_종목추천, collector.bot_차트수집, collector.bot_캐시생성
+import collector.bot_정보수집, collector.bot_종목관리, collector.bot_종목추천, collector.bot_차트수집, collector.bot_캐시생성
 
 # noinspection NonAsciiCharacters,PyPep8Naming,SpellCheckingInspection
 class LauncherCollector:
@@ -15,7 +15,6 @@ class LauncherCollector:
         # config 읽어 오기
         self.folder_프로젝트 = os.path.dirname(os.path.abspath(__file__))
         self.s_파일명 = os.path.basename(__file__).replace('.py', '')
-        # dic_config = json.load(open(os.path.join(self.folder_프로젝트, 'config.json'), mode='rt', encoding='utf-8'))
         dic_config = Tool.config로딩()
 
         # 로그 설정
@@ -43,6 +42,21 @@ class LauncherCollector:
         """ 정보수집 모듈 실행 """
         # 프로세스 정의
         p_수집봇 = mp.Process(target=collector.bot_정보수집.run, name='bot_정보수집')
+
+        # 프로세스 실행 및 종료 대기
+        p_수집봇.start()
+        p_수집봇.join()
+
+        # 로그 기록
+        if p_수집봇.exitcode <= 0:
+            self.make_로그(f'{p_수집봇.name} 구동 완료')
+        else:
+            self.send_카톡_오류발생(s_프로세스명=p_수집봇.name, n_오류코드=p_수집봇.exitcode)
+
+    def run_종목관리(self):
+        """ 종목관리 모듈 실행 """
+        # 프로세스 정의
+        p_수집봇 = mp.Process(target=collector.bot_종목관리.run, name='bot_종목관리')
 
         # 프로세스 실행 및 종료 대기
         p_수집봇.start()
@@ -159,12 +173,6 @@ class LauncherCollector:
 # noinspection NonAsciiCharacters,PyPep8Naming,SpellCheckingInspection
 def run():
     """ 실행 함수 """
-    # l = LauncherCollector()
-    # l.run_정보수집()
-    # l.run_차트수집()
-    # l.run_캐시생성()
-    # l.ut_파일정리()
-
     # 시간 베이스 실행
     l = LauncherCollector()
     b_즉시실행, b_1차실행, b_2차실행 = True, True, True
@@ -175,6 +183,7 @@ def run():
         # 즉시 실행
         if b_즉시실행:
             l.run_정보수집()
+            l.run_종목관리()
             b_즉시실행 = False
 
         # 1차 실행

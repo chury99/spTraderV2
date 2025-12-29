@@ -34,7 +34,8 @@ def define_폴더정보():
     dic_폴더정보['데이터|조건검색'] = os.path.join(folder_데이터, '조건검색_ws')
     dic_폴더정보['데이터|대상종목'] = os.path.join(folder_데이터, '대상종목')
     dic_폴더정보['데이터|조회순위'] = os.path.join(folder_데이터, '조회순위_tr')
-    dic_폴더정보['데이터|추천종목'] = os.path.join(folder_데이터, '추천종목')
+    dic_폴더정보['데이터|종목추천'] = os.path.join(folder_데이터, '종목추천')
+    dic_폴더정보['데이터|종목관리'] = os.path.join(folder_데이터, '종목관리')
     dic_폴더정보['데이터|차트캐시'] = os.path.join(folder_데이터, '차트캐시')
 
     # 분석 폴더 정의

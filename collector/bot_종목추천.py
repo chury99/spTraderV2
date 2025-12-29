@@ -32,8 +32,8 @@ class CollectorBot:
         self.folder_조건검색 = dic_폴더정보['데이터|조건검색']
         self.folder_조회순위 = dic_폴더정보['데이터|조회순위']
         self.folder_대상종목 = dic_폴더정보['데이터|대상종목']
-        self.folder_추천종목 = dic_폴더정보['데이터|추천종목']
-        os.makedirs(self.folder_추천종목, exist_ok=True)
+        self.folder_종목추천 = dic_폴더정보['데이터|종목추천']
+        os.makedirs(self.folder_종목추천, exist_ok=True)
 
         # 기준정보 정의
         self.s_오늘 = pd.Timestamp.now().strftime('%Y%m%d')
@@ -69,9 +69,9 @@ class CollectorBot:
         df_추천종목 = pd.DataFrame(li_dic추천종목)
 
         # 데이터 저장
-        folder_타겟 = os.path.join(self.folder_추천종목, '거북이')
+        folder_타겟 = os.path.join(self.folder_종목추천, '거북이')
         os.makedirs(folder_타겟, exist_ok=True)
-        Tool.df저장(df=df_추천종목, path=os.path.join(folder_타겟, f'df_추천종목_거북이_{self.s_오늘}'))
+        Tool.df저장(df=df_추천종목, path=os.path.join(folder_타겟, f'df_종목추천_거북이_{self.s_오늘}'))
 
         # 카톡송부
         s_메세지 = f'### [{self.s_오늘}] 거북이 추천종목 {len(li_추천종목)}개 ###'
@@ -99,9 +99,9 @@ class CollectorBot:
         dic_코드2종목명 = df_추천종목.set_index('종목코드')['종목명'].to_dict()
 
         # 데이터 저장
-        folder_타겟 = os.path.join(self.folder_추천종목, '조회순위')
+        folder_타겟 = os.path.join(self.folder_종목추천, '조회순위')
         os.makedirs(folder_타겟, exist_ok=True)
-        Tool.df저장(df=df_추천종목, path=os.path.join(folder_타겟, f'df_추천종목_조회순위_{s_일자}'))
+        Tool.df저장(df=df_추천종목, path=os.path.join(folder_타겟, f'df_종목추천_조회순위_{s_일자}'))
 
         # 카톡송부
         s_메세지 = f'## [{s_일자}] 조회순위 추천종목 {len(li_추천종목)}개 ##'
