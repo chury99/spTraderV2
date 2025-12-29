@@ -90,51 +90,6 @@ class CollectorBot:
                         for 파일 in os.listdir(os.path.join(self.folder_차트캐시, '일봉1')) if '.pkl' in 파일]
         s_일자 = max(일자 for 일자 in li_전체일자 if 일자 <= self.s_오늘)
 
-        # # 일봉 불러오기
-        # dic_일봉 = pd.read_pickle(os.path.join(self.folder_차트캐시, '일봉1', f'dic_차트캐시_1일봉_{s_일자}.pkl'))
-        #
-        # # 조회순위 불러오기
-        # df_조회순위 = pd.read_csv(os.path.join(self.folder_조회순위, f'df_조회순위_{s_일자}.csv'), encoding='cp949', dtype=str)
-        # li_대상종목 = sorted(df_조회순위.dropna(subset='종목코드')['종목코드'].unique().tolist())
-        #
-        # # 분석대상종목 불러오기
-        # path_분석대상 = os.path.join(self.folder_대상종목, f'df_대상종목_{s_일자}.pkl')
-        # df_분석대상 = pd.read_pickle(path_분석대상) if os.path.exists(path_분석대상) else pd.DataFrame()
-        # li_대상종목 = [종목 for 종목 in li_대상종목 if 종목 in df_분석대상['종목코드'].values]\
-        #             if len(df_분석대상) > 0 else li_대상종목
-        #
-        # # 종목별 조건 확인 - 당일 기준
-        # li_dic상승후보 = list()
-        # for s_종목코드 in li_대상종목:
-        #     # 기준정보 정의
-        #     df_일봉 = dic_일봉[s_종목코드]
-        #     df_일봉['전일고가3봉'] = df_일봉['고가'].shift(1).rolling(window=3).max()
-        #     df_일봉['추세신호'] = df_일봉['종가'] > df_일봉['전일고가3봉']
-        #     if len(df_일봉) < 2: continue
-        #     dt_당일 = df_일봉.index[-1]
-        #     n_당일종가 = df_일봉.loc[dt_당일, '종가']
-        #     n_당일60 = df_일봉.loc[dt_당일, '종가ma60']
-        #     n_당일120 = df_일봉.loc[dt_당일, '종가ma120']
-        #     n_당일바디 = (n_당일종가 - df_일봉.loc[dt_당일, '시가']) / df_일봉.loc[dt_당일, '전일종가'] * 100
-        #
-        #     # 조건 확인 - 당일 기준
-        #     li_조건확인 = list()
-        #     li_조건확인.append(True if n_당일종가 > n_당일60 > n_당일120 else False)
-        #     li_조건확인.append(True if sum(df_일봉['추세신호'].values[-5:]) > 0 else False)
-        #
-        #     # 결과 생성
-        #     dic_상승후보 = df_일봉.iloc[-1].to_dict()
-        #     dic_상승후보.update(당일종가=n_당일종가, 당일60=n_당일60, 당일120=n_당일120, 당일바디=n_당일바디,
-        #                     당일조건=sum(li_조건확인) == len(li_조건확인), 당일정배열=li_조건확인[0], 당일추세5일=li_조건확인[1])
-        #     li_dic상승후보.append(dic_상승후보)
-        #
-        # # 데이터 정리
-        # df_상승후보 = pd.DataFrame(li_dic상승후보) if len(li_dic상승후보) > 0 else pd.DataFrame()
-        # df_추천종목 = df_상승후보.loc[(df_상승후보['당일조건'])
-        #                          & (df_상승후보['당일바디'] > 0) & (df_상승후보['당일바디'] < 2)]
-        # li_추천종목 = sorted(df_추천종목['종목코드'].unique())
-        # dic_코드2종목명 = df_추천종목.set_index('종목코드')['종목명'].to_dict()
-
         # 데이터 정리
         df_상승후보 = analyzer.logic_상승후보.check_조회순위(s_일자=s_일자)
         df_추천종목 = df_상승후보.loc[(df_상승후보['당일조건'])
