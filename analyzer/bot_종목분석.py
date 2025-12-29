@@ -15,6 +15,7 @@ from fontTools.ttLib.tables.otTables import DeltaSetIndexMap
 from tqdm import tqdm
 
 import ut.로그maker, ut.폴더manager, ut.도구manager as Tool, ut.차트maker
+import analyzer.logic_상승후보
 
 
 # noinspection NonAsciiCharacters,SpellCheckingInspection,PyPep8Naming
@@ -103,49 +104,55 @@ class AnalyzerBot:
 
         # 일자별 데이터 생성
         for s_일자 in li_대상일자:
-            # 소스파일 불러오기
-            dic_일봉 = pd.read_pickle(os.path.join(folder_소스, f'{file_소스}_1일봉_{s_일자}.pkl'))
+            # # 소스파일 불러오기
+            # dic_일봉 = pd.read_pickle(os.path.join(folder_소스, f'{file_소스}_1일봉_{s_일자}.pkl'))
+            #
+            # # 조회순위 불러오기
+            # path_조회순위 = os.path.join(self.folder_조회순위, f'df_조회순위_{s_일자}.csv')
+            # df_조회순위 = pd.read_csv(path_조회순위, encoding='cp949', dtype=str)
+            # li_대상종목 = sorted(df_조회순위.dropna(subset='종목코드')['종목코드'].unique().tolist())
+            #
+            # # 분석대상종목 불러오기
+            # path_분석대상 = os.path.join(self.folder_대상종목, f'df_대상종목_{s_일자}.pkl')
+            # df_분석대상 = pd.read_pickle(path_분석대상) if os.path.exists(path_분석대상) else pd.DataFrame()
+            # li_대상종목 = [종목 for 종목 in li_대상종목 if 종목 in df_분석대상['종목코드'].values]\
+            #             if len(df_분석대상) > 0 else li_대상종목
+            #
+            # # 종목별 조건 확인
+            # li_dic상승후보 = list()
+            # for s_종목코드 in li_대상종목:
+            #     # 기준정보 정의
+            #     df_일봉 = dic_일봉[s_종목코드]
+            #     df_일봉['전일고가3봉'] = df_일봉['고가'].shift(1).rolling(window=3).max()
+            #     df_일봉['추세신호'] = df_일봉['종가'] > df_일봉['전일고가3봉']
+            #     if len(df_일봉) < 2: continue
+            #     dt_전일 = df_일봉.index[-2]
+            #     n_전일종가 = df_일봉.loc[dt_전일, '종가']
+            #     n_전일60 = df_일봉.loc[dt_전일, '종가ma60']
+            #     n_전일120 = df_일봉.loc[dt_전일, '종가ma120']
+            #     n_전일바디 = (n_전일종가 - df_일봉.loc[dt_전일, '시가']) / df_일봉.loc[dt_전일, '전일종가'] * 100
+            #
+            #     # 조건 확인 - 전일 기준
+            #     li_조건확인 = list()
+            #     li_조건확인.append(True if n_전일종가 > n_전일60 > n_전일120 else False)
+            #     li_조건확인.append(True if sum(df_일봉['추세신호'].values[-6:-1]) > 0 else False)
+            #
+            #     # 결과 생성
+            #     dic_상승후보 = df_일봉.iloc[-1].to_dict()
+            #     dic_상승후보.update(전일종가=n_전일종가, 전일60=n_전일60, 전일120=n_전일120, 전일바디=n_전일바디,
+            #                     전일조건=sum(li_조건확인)==len(li_조건확인), 전일정배열=li_조건확인[0], 전일추세5일=li_조건확인[1])
+            #     li_dic상승후보.append(dic_상승후보)
+            #
+            # # df 생성
+            # df_상승후보 = pd.DataFrame(li_dic상승후보) if len(li_dic상승후보) > 0 else pd.DataFrame()
+            # df_상승후보_후보만 = df_상승후보.loc[(df_상승후보['전일조건'])
+            #                                     & (df_상승후보['전일바디'] > 0) & (df_상승후보['전일바디'] < 2)]
 
-            # 조회순위 불러오기
-            path_조회순위 = os.path.join(self.folder_조회순위, f'df_조회순위_{s_일자}.csv')
-            df_조회순위 = pd.read_csv(path_조회순위, encoding='cp949', dtype=str)
-            li_대상종목 = sorted(df_조회순위.dropna(subset='종목코드')['종목코드'].unique().tolist())
-
-            # 분석대상종목 불러오기
-            path_분석대상 = os.path.join(self.folder_대상종목, f'df_대상종목_{s_일자}.pkl')
-            df_분석대상 = pd.read_pickle(path_분석대상) if os.path.exists(path_분석대상) else pd.DataFrame()
-            li_대상종목 = [종목 for 종목 in li_대상종목 if 종목 in df_분석대상['종목코드'].values]\
-                        if len(df_분석대상) > 0 else li_대상종목
-
-            # 종목별 조건 확인
-            li_dic상승후보 = list()
-            for s_종목코드 in li_대상종목:
-                # 기준정보 정의
-                df_일봉 = dic_일봉[s_종목코드]
-                df_일봉['전일고가3봉'] = df_일봉['고가'].shift(1).rolling(window=3).max()
-                df_일봉['추세신호'] = df_일봉['종가'] > df_일봉['전일고가3봉']
-                if len(df_일봉) < 2: continue
-                dt_전일 = df_일봉.index[-2]
-                n_전일종가 = df_일봉.loc[dt_전일, '종가']
-                n_전일60 = df_일봉.loc[dt_전일, '종가ma60']
-                n_전일120 = df_일봉.loc[dt_전일, '종가ma120']
-                n_전일바디 = (n_전일종가 - df_일봉.loc[dt_전일, '시가']) / df_일봉.loc[dt_전일, '전일종가'] * 100
-
-                # 조건 확인 - 전일 기준
-                li_조건확인 = list()
-                li_조건확인.append(True if n_전일종가 > n_전일60 > n_전일120 else False)
-                li_조건확인.append(True if sum(df_일봉['추세신호'].values[-6:-1]) > 0 else False)
-
-                # 결과 생성
-                dic_상승후보 = df_일봉.iloc[-1].to_dict()
-                dic_상승후보.update(전일종가=n_전일종가, 전일60=n_전일60, 전일120=n_전일120, 전일바디=n_전일바디,
-                                전일조건=sum(li_조건확인)==len(li_조건확인), 전일정배열=li_조건확인[0], 전일추세5일=li_조건확인[1])
-                li_dic상승후보.append(dic_상승후보)
-
-            # df 생성
-            df_상승후보 = pd.DataFrame(li_dic상승후보) if len(li_dic상승후보) > 0 else pd.DataFrame()
+            # 데이터 생성
+            df_상승후보 = analyzer.logic_상승후보.check_조회순위(s_일자=s_일자)
             df_상승후보_후보만 = df_상승후보.loc[(df_상승후보['전일조건'])
-                                                & (df_상승후보['전일바디'] > 0) & (df_상승후보['전일바디'] < 2)]
+                                            & (df_상승후보['전일바디'] > 0) & (df_상승후보['전일바디'] < 2)]\
+                                if len(df_상승후보) > 0 else pd.DataFrame()
 
             # 데이터 저장
             Tool.df저장(df=df_상승후보, path=os.path.join(folder_타겟, f'{file_타겟}_{s_일자}'))
