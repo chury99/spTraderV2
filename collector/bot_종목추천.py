@@ -47,7 +47,7 @@ class CollectorBot:
         # 로그 기록
         self.make_로그(f'구동 시작')
 
-    def find_추천종목_거북이(self):
+    def find_거북이추천(self):
         """ 조회순위 종목 중 거북이추천 종목에 포함된 종목 선정하여 저장 """
         # 조회순위 불러오기
         df_조회순위 = pd.read_csv(os.path.join(self.folder_조회순위, f'df_조회순위_{self.s_오늘}.csv'), encoding='cp949', dtype=str)
@@ -83,7 +83,7 @@ class CollectorBot:
         self.make_로그(f'{self.s_오늘} 완료\n'
                      f' - {len(df_추천종목):,.0f} 종목')
 
-    def find_추천종목_조회순위(self):
+    def find_조회순위추천(self):
         """ 조회순위 데이터 기준으로 일봉차트 확인하여 대상종목 선정 """
         # 일자 확인
         li_전체일자 = [re.findall(r'\d{8}', 파일)[0]
@@ -115,20 +115,20 @@ class CollectorBot:
 
 
 # noinspection NonAsciiCharacters,SpellCheckingInspection,PyPep8Naming
-def run_거북이():
+def run_거북이추천():
     """ 실행 함수 """
     c = CollectorBot()
-    c.find_추천종목_거북이()
+    c.find_거북이추천()
 
 # noinspection NonAsciiCharacters,SpellCheckingInspection,PyPep8Naming
-def run_조회순위():
+def run_조회순위추천():
     """ 실행 함수 """
     c = CollectorBot()
-    c.find_추천종목_조회순위()
+    c.find_조회순위추천()
 
 if __name__ == '__main__':
     try:
-        run_거북이()
-        run_조회순위()
+        run_거북이추천()
+        run_조회순위추천()
     except KeyboardInterrupt:
         print('\n### [ KeyboardInterrupt detected ] ###')
