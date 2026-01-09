@@ -68,7 +68,7 @@ class LauncherCollector:
         else:
             self.send_카톡_오류발생(s_프로세스명=p_수집봇.name, n_오류코드=p_수집봇.exitcode)
 
-    def run_종목추천_거북이추천(self):
+    def run_거북이추천(self):
         """ 종목추천 모듈 실행 """
         # 프로세스 정의
         p_수집봇 = mp.Process(target=collector.bot_종목추천.run_거북이추천, name='bot_거북이추천')
@@ -83,7 +83,7 @@ class LauncherCollector:
         else:
             self.send_카톡_오류발생(s_프로세스명=p_수집봇.name, n_오류코드=p_수집봇.exitcode)
 
-    def run_종목추천_조회순위추천(self):
+    def run_조회순위추천(self):
         """ 종목추천 모듈 실행 """
         # 프로세스 정의
         p_수집봇 = mp.Process(target=collector.bot_종목추천.run_조회순위추천, name='bot_조회순위추천')
@@ -189,7 +189,7 @@ def run():
         # 1차 실행
         dt_1차실행 = pd.Timestamp('14:00:00')
         if dt_현재시각 >= dt_1차실행 and b_1차실행:
-            l.run_종목추천_거북이추천()
+            l.run_거북이추천()
             b_1차실행 = False
 
         # 2차 실행
@@ -197,7 +197,7 @@ def run():
         if dt_현재시각 >= dt_2차실행 and b_2차실행:
             l.run_차트수집()
             l.run_캐시생성()
-            l.run_종목추천_조회순위추천()
+            l.run_조회순위추천()
             l.ut_파일정리()
             b_2차실행 = False
 
