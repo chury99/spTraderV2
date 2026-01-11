@@ -107,8 +107,9 @@ class AnalyzerBot:
         for s_일자 in li_대상일자:
             # 데이터 생성
             df_상승후보 = analyzer.logic_상승후보.check_조회순위_추세돌파(s_일자=s_일자)
-            df_후보만 = df_상승후보.loc[(df_상승후보['당일조건']) & (df_상승후보['당일바디'] > 0) & (df_상승후보['당일바디'] < 2)]\
-                        if len(df_상승후보) > 0 else pd.DataFrame()
+            # df_후보만 = df_상승후보.loc[(df_상승후보['당일조건']) & (df_상승후보['당일바디'] > 0) & (df_상승후보['당일바디'] < 2)]\
+            #             if len(df_상승후보) > 0 else pd.DataFrame()
+            df_후보만 = df_상승후보.loc[df_상승후보['당일조건']] if len(df_상승후보) > 0 else pd.DataFrame()
 
             # 데이터 저장
             Tool.df저장(df=df_상승후보, path=os.path.join(folder_타겟, f'{file_타겟}_{s_일자}'))
@@ -184,22 +185,41 @@ class AnalyzerBot:
                 n_경과일 = 0 if not b_보유종목 else n_보유종목_경과일 + 1
 
                 # 매도정보 생성
-                n_기준수익률 = 0 if b_보유종목 else 5
                 n_수익률 = (n_종가 / n_매수가 - 1) * 100 - 0.2
-                n_매도가 = n_종가 if n_수익률 > n_기준수익률 or n_경과일 >= 5 else None
-                # n_매도가 = n_종가 if n_수익률 > 0 or n_경과일 >= 2 else None
+                if n_수익률 > 5:
+                    n_매도가 = n_종가
+                    s_매도사유 = '수익달성'
+                elif n_전일종가 < n_전일저가3봉:
+                    n_매도가 = n_시가
+                    s_매도사유 = '저가3봉'
+                elif n_경과일 >=5:
+                    n_매도가 = n_종가
+                    s_매도사유 = '5일경과'
+                else:
+                    n_매도가 = None
+                    s_매도사유 = None
                 s_매도일 = s_일자 if n_매도가 is not None else None
+                n_수익률 = (n_매도가 / n_매수가 - 1) * 100 - 0.2 if n_매도가 is not None else n_수익률
+
+                # n_기준수익률 = 5
+                # n_수익률 = (n_종가 / n_매수가 - 1) * 100 - 0.2
+                # n_매도가 = n_종가 if n_수익률 > n_기준수익률 else None
+                # n_매도가 = n_시가 if n_매도가 is not None and n_전일종가 < n_전일저가3봉 else n_매도가
+                # n_매도가 = n_종가 if n_매도가 is not None and n_경과일 >=5 else n_매도가
+                # # n_매도가 = n_종가 if n_수익률 > 0 or n_경과일 >= 2 else None
+                # s_매도일 = s_일자 if n_매도가 is not None else None
 
                 # 손절정보 생성 - 보유종목 대상
-                if b_보유종목 and (s_매도일 is None) and (n_전일종가 < n_전일저가3봉):
-                    n_매도가 = n_시가
-                    s_매도일 = s_일자
-                    n_수익률 = (n_매도가 / n_매수가 - 1) * 100 - 0.2
+                # if b_보유종목 and (s_매도일 is None) and (n_전일종가 < n_전일저가3봉):
+                #     n_매도가 = n_시가
+                #     s_매도일 = s_일자
+                #     n_수익률 = (n_매도가 / n_매수가 - 1) * 100 - 0.2
 
                 # 매매정보 정리
                 dic_매매정보 = dict(일자=s_일자, 종목코드=s_종목코드, 종목명=s_종목명,
                                 시가=n_시가, 고가=n_고가, 저가=n_저가, 종가=n_종가, 전일종가=n_전일종가,
-                                매수일=s_매수일, 매도일=s_매도일, 경과일=n_경과일, 매수가=n_매수가, 매도가=n_매도가, 수익률=n_수익률)
+                                매수일=s_매수일, 매도일=s_매도일, 경과일=n_경과일, 매수가=n_매수가, 매도가=n_매도가, 수익률=n_수익률,
+                                매도사유=s_매도사유)
                 li_dic매매정보.append(dic_매매정보)
 
             # 데이터 정리
@@ -302,7 +322,7 @@ def run():
     """ 실행 함수 """
     a = AnalyzerBot(b_디버그모드=True, s_시작일자=None)
     # a.sync_소스파일()
-    # a.find_상승후보()
+    a.find_상승후보()
     a.make_매매정보()
     a.make_수익정보()
 
