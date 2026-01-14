@@ -107,8 +107,6 @@ class AnalyzerBot:
         for s_일자 in li_대상일자:
             # 데이터 생성
             df_상승후보 = analyzer.logic_상승후보.check_조회순위_추세돌파(s_일자=s_일자)
-            # df_후보만 = df_상승후보.loc[(df_상승후보['당일조건']) & (df_상승후보['당일바디'] > 0) & (df_상승후보['당일바디'] < 2)]\
-            #             if len(df_상승후보) > 0 else pd.DataFrame()
             df_후보만 = df_상승후보.loc[df_상승후보['당일조건']] if len(df_상승후보) > 0 else pd.DataFrame()
 
             # 데이터 저장
@@ -141,8 +139,8 @@ class AnalyzerBot:
             # 상승후보 불러오기 - 전일 기준
             df_상승후보 = pd.read_pickle(os.path.join(folder_소스, f'{file_소스}_{s_전일}.pkl'))
             # df_후보만 = df_상승후보.loc[(df_상승후보['당일조건']) & (df_상승후보['당일바디'] > 0) & (df_상승후보['당일바디'] < 2)]
-            df_후보만 = df_상승후보.loc[df_상승후보['당일조건']]
-            li_상승후보 = df_후보만['종목코드'].tolist()
+            df_후보만 = df_상승후보.loc[df_상승후보['당일조건']] if len(df_상승후보) > 0 else pd.DataFrame()
+            li_상승후보 = df_후보만['종목코드'].tolist() if len(df_상승후보) > 0 else list()
 
             # 일봉 불러오기 - 당일 기준
             dic_일봉 = pd.read_pickle(os.path.join(self.folder_차트캐시, '일봉1', f'dic_차트캐시_1일봉_{s_일자}.pkl'))
@@ -223,16 +221,17 @@ class AnalyzerBot:
                 li_dic매매정보.append(dic_매매정보)
 
             # 데이터 정리
-            df_매매정보 = pd.DataFrame(li_dic매매정보).sort_values(['매수일', '종목코드'])
+            df_매매정보 = pd.DataFrame(li_dic매매정보).sort_values(['매수일', '종목코드'])\
+                            if len(li_dic매매정보) > 0 else pd.DataFrame()
 
             # 데이터 저장
             Tool.df저장(df=df_매매정보, path=os.path.join(folder_타겟, f'{file_타겟}_{s_일자}'))
 
             # 로그 기록
-            n_매수종목 = len(df_매매정보.loc[df_매매정보['매수일'] == s_일자])
-            n_매도종목 = len(df_매매정보.loc[df_매매정보['매도일'] == s_일자])
-            n_잔여종목 = len(df_매매정보.loc[pd.isna(df_매매정보['매도일'])])
-            n_수익 = df_매매정보.loc[df_매매정보['매도일'] == s_일자]['수익률'].sum()
+            n_매수종목 = len(df_매매정보.loc[df_매매정보['매수일'] == s_일자]) if len(df_매매정보) > 0 else 0
+            n_매도종목 = len(df_매매정보.loc[df_매매정보['매도일'] == s_일자]) if len(df_매매정보) > 0 else 0
+            n_잔여종목 = len(df_매매정보.loc[pd.isna(df_매매정보['매도일'])]) if len(df_매매정보) > 0 else 0
+            n_수익 = df_매매정보.loc[df_매매정보['매도일'] == s_일자]['수익률'].sum() if len(df_매매정보) > 0 else 0
             self.make_로그(f'{s_일자} 완료\n'
                          f' - 총 {len(df_매매정보):,.0f}건, 매수 {n_매수종목:,.0f}건, 매도 {n_매도종목:,.0f}건,'
                          f' 잔여 {n_잔여종목:,.0f}건, 수익 {n_수익:,.1f}%')
@@ -255,6 +254,7 @@ class AnalyzerBot:
         for s_일자 in li_대상일자:
             # 소스파일 불러오기
             df_매매정보 = pd.read_pickle(os.path.join(folder_소스, f'{file_소스}_{s_일자}.pkl'))
+            if len(df_매매정보) == 0: continue
 
             # 수익정보 생성
             df_매매정보_매수 = df_매매정보.loc[df_매매정보['매수일'] == s_일자]
