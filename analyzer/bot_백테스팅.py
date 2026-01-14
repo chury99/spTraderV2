@@ -46,19 +46,19 @@ class AnalyzerBot:
         self.folder_백테스팅 = dic_폴더정보['분석|백테스팅']
         os.makedirs(self.folder_백테스팅, exist_ok=True)
 
-        # 추가 폴더 정의
-        self.folder_대상선정 = os.path.join(self.folder_백테스팅, '10_대상선정')
-        self.folder_매매신호 = os.path.join(self.folder_백테스팅, '20_매매신호')
-        self.folder_매수매도 = os.path.join(self.folder_백테스팅, '30_매수매도')
-        self.folder_매매내역 = os.path.join(self.folder_백테스팅, '40_매매내역')
-        self.folder_수익내역 = os.path.join(self.folder_백테스팅, '50_수익내역')
-        self.folder_수익요약 = os.path.join(self.folder_백테스팅, '60_수익요약')
-        os.makedirs(self.folder_대상선정, exist_ok=True)
-        os.makedirs(self.folder_매매신호, exist_ok=True)
-        os.makedirs(self.folder_매수매도, exist_ok=True)
-        os.makedirs(self.folder_매매내역, exist_ok=True)
-        os.makedirs(self.folder_수익내역, exist_ok=True)
-        os.makedirs(self.folder_수익요약, exist_ok=True)
+        # # 추가 폴더 정의
+        # self.folder_대상선정 = os.path.join(self.folder_백테스팅, '10_대상선정')
+        # self.folder_매매신호 = os.path.join(self.folder_백테스팅, '20_매매신호')
+        # self.folder_매수매도 = os.path.join(self.folder_백테스팅, '30_매수매도')
+        # self.folder_매매내역 = os.path.join(self.folder_백테스팅, '40_매매내역')
+        # self.folder_수익내역 = os.path.join(self.folder_백테스팅, '50_수익내역')
+        # self.folder_수익요약 = os.path.join(self.folder_백테스팅, '60_수익요약')
+        # os.makedirs(self.folder_대상선정, exist_ok=True)
+        # os.makedirs(self.folder_매매신호, exist_ok=True)
+        # os.makedirs(self.folder_매수매도, exist_ok=True)
+        # os.makedirs(self.folder_매매내역, exist_ok=True)
+        # os.makedirs(self.folder_수익내역, exist_ok=True)
+        # os.makedirs(self.folder_수익요약, exist_ok=True)
 
         # 기준정보 정의
         self.s_오늘 = pd.Timestamp.now().strftime('%Y%m%d')
@@ -102,11 +102,18 @@ class AnalyzerBot:
 
     def pick_대상선정(self):
         """ 초봉 데이터 수집된 종목 기준으로 일봉차트 확인하여 대상종목 선정 """
+        # # 기준정보 정의
+        # folder_소스 = os.path.join(self.folder_차트캐시, f'초봉1')
+        # folder_타겟 = self.folder_대상선정
+        # file_소스 = f'dic_차트캐시'
+        # file_타겟 = f'df_대상선정'
+
         # 기준정보 정의
         folder_소스 = os.path.join(self.folder_차트캐시, f'초봉1')
-        folder_타겟 = self.folder_대상선정
         file_소스 = f'dic_차트캐시'
+        folder_타겟 = os.path.join(self.folder_백테스팅, '10_대상선정')
         file_타겟 = f'df_대상선정'
+        os.makedirs(folder_타겟, exist_ok=True)
 
         # 대상일자 확인
         li_전체일자 = sorted(re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_소스)
@@ -130,7 +137,9 @@ class AnalyzerBot:
                 # 기준정보 정의
                 df_일봉 = dic_일봉[s_종목코드]
                 df_일봉['전일고가3봉'] = df_일봉['고가'].shift(1).rolling(window=3).max()
-                df_일봉['추세신호'] = df_일봉['종가'] > df_일봉['전일고가3봉']
+                df_일봉['신호_고가3봉'] = df_일봉['종가'] > df_일봉['전일고가3봉']
+                df_일봉['전일고가20봉'] = df_일봉['고가'].shift(1).rolling(window=20).max()
+                df_일봉['신호_고가20봉'] = df_일봉['종가'] > df_일봉['전일고가20봉']
                 if len(df_일봉) < 2: continue
                 dt_전일 = df_일봉.index[-2]
                 n_전일종가 = df_일봉.loc[dt_전일, '종가']
@@ -141,12 +150,14 @@ class AnalyzerBot:
                 # 조건 확인 - 전일 기준
                 li_조건확인 = list()
                 li_조건확인.append(True if n_전일종가 > n_전일60 > n_전일120 else False)
-                li_조건확인.append(True if sum(df_일봉['추세신호'].values[-6:-1]) > 0 else False)
+                li_조건확인.append(True if sum(df_일봉['신호_고가3봉'].values[-6:-1]) > 0 else False)
+                li_조건확인.append(True if df_일봉['신호_고가20봉'].values[-2] == True else False)
 
                 # 결과 생성
                 dic_대상종목 = df_일봉.iloc[-1].to_dict()
                 dic_대상종목.update(전일종가=n_전일종가, 전일60=n_전일60, 전일120=n_전일120, 전일바디=n_전일바디,
-                                전일조건=sum(li_조건확인)==len(li_조건확인), 전일정배열=li_조건확인[0], 전일추세5일=li_조건확인[1])
+                                전일조건=sum(li_조건확인)==len(li_조건확인),
+                                전일정배열=li_조건확인[0], 전일추세5일=li_조건확인[1], 전일추세20봉=li_조건확인[2])
                 li_dic대상종목.append(dic_대상종목)
 
             # df 생성
@@ -160,11 +171,18 @@ class AnalyzerBot:
 
     def make_매매신호(self, n_봉수):
         """ 초봉 데이터 기준 매수/매도 신호 생성 """
+        # # 기준정보 정의
+        # folder_소스 = self.folder_대상선정
+        # folder_타겟 = self.folder_매매신호
+        # file_소스 = f'df_대상선정'
+        # file_타겟 = f'dic_매매신호'
+
         # 기준정보 정의
-        folder_소스 = self.folder_대상선정
-        folder_타겟 = self.folder_매매신호
+        folder_소스 = os.path.join(self.folder_백테스팅, '10_대상선정')
         file_소스 = f'df_대상선정'
+        folder_타겟 = os.path.join(self.folder_백테스팅, '20_매매신호')
         file_타겟 = f'dic_매매신호'
+        os.makedirs(folder_타겟, exist_ok=True)
 
         # 대상일자 확인
         li_전체일자 = sorted(re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_소스)
@@ -176,6 +194,10 @@ class AnalyzerBot:
 
         # 일자별 매수매도 정보 생성
         for s_일자 in li_대상일자:
+
+            ##### 여기서부터 다시 볼 것 #####
+
+
             # 소스파일 불러오기
             df_대상선정 = pd.read_pickle(os.path.join(folder_소스, f'{file_소스}_{s_일자}.pkl'))
             dic_코드2종목 = df_대상선정.set_index(['종목코드'])['종목명'].to_dict()
@@ -670,7 +692,7 @@ def run():
     a = AnalyzerBot(b_디버그모드=False)
     # ret = a.sync_소스파일()
     # ret = a.pick_대상선정()
-    # ret = [a.make_매매신호(n_봉수=봉수) for 봉수 in [1]]
+    ret = [a.make_매매신호(n_봉수=봉수) for 봉수 in [1]]
     ret = [a.make_매수매도(n_봉수=봉수) for 봉수 in [1]]
     ret = [a.make_매매내역(n_봉수=봉수) for 봉수 in [1]]
     ret = [a.make_수익내역(n_봉수=봉수) for 봉수 in [1]]
