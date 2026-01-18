@@ -23,7 +23,7 @@ import xapi.RestAPI_kiwoom, xapi.WebsocketAPI_kiwoom
 
 # noinspection NonAsciiCharacters,SpellCheckingInspection,PyPep8Naming
 class AnalyzerBot:
-    def __init__(self, b_디버그모드=False):
+    def __init__(self, b_디버그모드=False, s_시작일자=None):
         # config 읽어 오기
         self.folder_베이스 = os.path.dirname(os.path.abspath(__file__))
         self.folder_프로젝트 = os.path.dirname(self.folder_베이스)
@@ -62,7 +62,7 @@ class AnalyzerBot:
 
         # 기준정보 정의
         self.s_오늘 = pd.Timestamp.now().strftime('%Y%m%d')
-        self.s_시작일자 = '20251201'
+        self.s_시작일자 = '20260101' if s_시작일자 is None else s_시작일자
         self.b_디버그모드 = b_디버그모드
         self.n_멀티코어수 = mp.cpu_count() - 3
         self.dic_args = dict()
@@ -100,19 +100,13 @@ class AnalyzerBot:
         self.make_로그(f'{len(li_동기화파일명):,.0f}개 파일 완료'
                       f'{s_동기화파일명}')
 
-    def pick_대상선정(self):
-        """ 초봉 데이터 수집된 종목 기준으로 일봉차트 확인하여 대상종목 선정 """
-        # # 기준정보 정의
-        # folder_소스 = os.path.join(self.folder_차트캐시, f'초봉1')
-        # folder_타겟 = self.folder_대상선정
-        # file_소스 = f'dic_차트캐시'
-        # file_타겟 = f'df_대상선정'
-
+    def find_일봉확인(self):
+        """ 초봉 데이터 수집된 종목 기준으로 일봉차트 확인 """
         # 기준정보 정의
         folder_소스 = os.path.join(self.folder_차트캐시, f'초봉1')
         file_소스 = f'dic_차트캐시'
-        folder_타겟 = os.path.join(self.folder_백테스팅, '10_대상선정')
-        file_타겟 = f'df_대상선정'
+        folder_타겟 = os.path.join(self.folder_백테스팅, '10_일봉확인')
+        file_타겟 = f'df_일봉확인'
         os.makedirs(folder_타겟, exist_ok=True)
 
         # 대상일자 확인
@@ -132,7 +126,7 @@ class AnalyzerBot:
             dic_일봉 = pd.read_pickle(os.path.join(self.folder_차트캐시, '일봉1', f'dic_차트캐시_1일봉_{s_일자}.pkl'))
 
             # 종목별 조건 확인
-            li_dic대상종목 = list()
+            li_dic일봉확인 = list()
             for s_종목코드 in li_대상종목_초봉:
                 # 기준정보 정의
                 df_일봉 = dic_일봉[s_종목코드]
@@ -154,32 +148,27 @@ class AnalyzerBot:
                 li_조건확인.append(True if df_일봉['신호_고가20봉'].values[-2] == True else False)
 
                 # 결과 생성
-                dic_대상종목 = df_일봉.iloc[-1].to_dict()
-                dic_대상종목.update(전일종가=n_전일종가, 전일60=n_전일60, 전일120=n_전일120, 전일바디=n_전일바디,
+                dic_일봉확인 = df_일봉.iloc[-1].to_dict()
+                dic_일봉확인.update(전일종가=n_전일종가, 전일60=n_전일60, 전일120=n_전일120, 전일바디=n_전일바디,
                                 전일조건=sum(li_조건확인)==len(li_조건확인),
                                 전일정배열=li_조건확인[0], 전일추세5일=li_조건확인[1], 전일추세20봉=li_조건확인[2])
-                li_dic대상종목.append(dic_대상종목)
+                li_dic일봉확인.append(dic_일봉확인)
 
             # df 생성
-            df_대상종목 = pd.DataFrame(li_dic대상종목) if len(li_dic대상종목) > 0 else pd.DataFrame()
+            df_일봉확인 = pd.DataFrame(li_dic일봉확인) if len(li_dic일봉확인) > 0 else pd.DataFrame()
 
             # 결과파일 저장
-            Tool.df저장(df=df_대상종목, path=os.path.join(folder_타겟, f'{file_타겟}_{s_일자}'))
+            Tool.df저장(df=df_일봉확인, path=os.path.join(folder_타겟, f'{file_타겟}_{s_일자}'))
 
             # 로그 기록
-            self.make_로그(f'{s_일자} 완료\n - 전체 {len(df_대상종목):,.0f}종목, 대상 {df_대상종목['전일조건'].sum():,.0f}종목')
+            self.make_로그(f'{s_일자} 완료\n'
+                         f' - 전체 {len(df_일봉확인):,.0f}종목, 전일조건 {df_일봉확인['전일조건'].sum():,.0f}종목')
 
     def make_매매신호(self, n_봉수):
         """ 초봉 데이터 기준 매수/매도 신호 생성 """
-        # # 기준정보 정의
-        # folder_소스 = self.folder_대상선정
-        # folder_타겟 = self.folder_매매신호
-        # file_소스 = f'df_대상선정'
-        # file_타겟 = f'dic_매매신호'
-
         # 기준정보 정의
-        folder_소스 = os.path.join(self.folder_백테스팅, '10_대상선정')
-        file_소스 = f'df_대상선정'
+        folder_소스 = os.path.join(self.folder_백테스팅, '10_일봉확인')
+        file_소스 = f'df_일봉확인'
         folder_타겟 = os.path.join(self.folder_백테스팅, '20_매매신호')
         file_타겟 = f'dic_매매신호'
         os.makedirs(folder_타겟, exist_ok=True)
@@ -190,46 +179,35 @@ class AnalyzerBot:
         li_완료일자 = [re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_타겟)
                         if file_타겟 in 파일 and f'{n_봉수}초봉'in 파일]
         li_대상일자 = [일자 for 일자 in li_전체일자 if 일자 not in li_완료일자 and 일자 >= self.s_시작일자]
-        li_대상일자 = li_대상일자[:3]
+        # li_대상일자 = li_대상일자[:3]
 
         # 일자별 매수매도 정보 생성
         for s_일자 in li_대상일자:
-
-            ##### 여기서부터 다시 볼 것 #####
-
-
             # 소스파일 불러오기
-            df_대상선정 = pd.read_pickle(os.path.join(folder_소스, f'{file_소스}_{s_일자}.pkl'))
-            dic_코드2종목 = df_대상선정.set_index(['종목코드'])['종목명'].to_dict()
-            li_대상종목 = df_대상선정.loc[df_대상선정['전일조건'], '종목코드'].tolist()
-
-            # 전체종목 불러오기
-            # df_전체종목 = pd.read_pickle(os.path.join(self.folder_전체종목, f'df_전체종목_{s_일자}.pkl'))
-            # dic_코드2종목 = df_전체종목.set_index(['종목코드'])['종목명'].to_dict()
+            df_일봉확인 = pd.read_pickle(os.path.join(folder_소스, f'{file_소스}_{s_일자}.pkl'))
+            dic_코드2종목 = df_일봉확인.set_index(['종목코드'])['종목명'].to_dict()
+            li_일봉조건 = df_일봉확인.loc[df_일봉확인['전일조건'], '종목코드'].tolist()
 
             # 분석 대상종목 불러오기
-            df_대상종목 = pd.read_pickle(os.path.join(self.folder_대상종목, f'df_대상종목_{s_일자}.pkl'))
-            li_대상종목 = [종목 for 종목 in li_대상종목 if 종목 in df_대상종목['종목코드'].values]
+            path_분석대상 = os.path.join(self.folder_대상종목, f'df_대상종목_{s_일자}.pkl')
+            df_분석대상 = pd.read_pickle(path_분석대상) if os.path.exists(path_분석대상) else pd.DataFrame()
+            li_대상종목 = [종목 for 종목 in li_일봉조건 if 종목 in df_분석대상['종목코드'].values]\
+                            if len(df_분석대상) > 0 else li_일봉조건
 
             # 초봉캐시 불러오기
             folder_초봉 = os.path.join(self.folder_차트캐시, f'초봉{n_봉수}')
             dic_초봉 = pd.read_pickle(os.path.join(folder_초봉, f'dic_차트캐시_{n_봉수}초봉_{s_일자}.pkl'))
-            # li_대상종목 = list(dic_초봉.keys())
 
             # 1초봉 불러오기
             dic_1초봉 = pd.read_pickle(os.path.join(self.folder_차트캐시, '초봉1', f'dic_차트캐시_1초봉_{s_일자}.pkl'))\
                         if n_봉수 > 1 else dic_초봉
 
             # 매개변수 정의 - 종목별 함수 전달용
-            # self.dic_args = dict(n_봉수=n_봉수, s_일자=s_일자, dic_초봉=dic_초봉, dic_코드2종목=dic_코드2종목, dic_1초봉=dic_1초봉,
-            #                      file_타겟=file_타겟)
-            li_매개변수 = list()
-            for s_종목코드 in li_대상종목:
-                dic_매개변수 = dict(s_종목코드=s_종목코드, s_종목명=dic_코드2종목[s_종목코드], n_봉수=n_봉수, s_일자=s_일자,
-                                folder_타겟=folder_타겟, file_타겟=file_타겟,
-                                df_초봉=dic_초봉.get(s_종목코드, pd.DataFrame()),
-                                df_1초봉=dic_1초봉.get(s_종목코드, pd.DataFrame()))
-                li_매개변수.append(dic_매개변수)
+            li_매개변수 = [dict(s_종목코드=s_종목코드, s_종목명=dic_코드2종목[s_종목코드], n_봉수=n_봉수, s_일자=s_일자,
+                            folder_타겟=folder_타겟, file_타겟=file_타겟,
+                            df_초봉=dic_초봉.get(s_종목코드, pd.DataFrame()),
+                            df_1초봉=dic_1초봉.get(s_종목코드, pd.DataFrame()))
+                       for s_종목코드 in li_대상종목]
 
             # 종목별 매수매도 정보 생성
             li_df매매신호 = list()
@@ -533,17 +511,6 @@ class AnalyzerBot:
     @staticmethod
     def _make_매매신호_종목(dic_매개변수):
         """ 종목별 매수매도 정보 생성 후 리턴 """
-        # # 기준정보 정의
-        # file_타겟 = self.dic_args['file_타겟']
-        # n_봉수 = self.dic_args['n_봉수']
-        # s_일자 = self.dic_args['s_일자']
-        # dic_코드2종목 = self.dic_args['dic_코드2종목']
-        # dic_초봉 = self.dic_args['dic_초봉']
-        # dic_1초봉 = self.dic_args['dic_1초봉']
-        # s_종목명 = dic_코드2종목.get(s_종목코드, None)
-        # df_초봉 = dic_초봉.get(s_종목코드, pd.DataFrame())
-        # df_1초봉 = dic_1초봉.get(s_종목코드, pd.DataFrame())
-
         # 기준정보 정의
         s_종목코드 = dic_매개변수['s_종목코드']
         s_종목명 = dic_매개변수['s_종목명']
@@ -555,9 +522,16 @@ class AnalyzerBot:
         df_1초봉 = dic_매개변수['df_1초봉']
 
         # 종목별 args 생성
-        # dic_args_종목 = self.dic_args.get(s_종목코드, dict())
-        # dic_args_종목.update(s_종목코드= s_종목코드, s_종목명=s_종목명, n_봉수=n_봉수, s_일자=s_일자, df_초봉=df_초봉)
         dic_args_종목 = dic_매개변수
+
+        # 추가정보 생성
+        df_초봉['종가ma20'] = df_초봉['종가'].rolling(20).mean()
+        df_초봉['종가ma60'] = df_초봉['종가'].rolling(60).mean()
+        df_초봉['거래량ma5'] = df_초봉['거래량'].rolling(5).mean()
+        df_초봉['고가20'] = df_초봉['고가'].shift(1).rolling(20).max()
+        sri_고가, sri_저가, sri_전일종가 = df_초봉['고가'], df_초봉['저가'], df_초봉['종가'].shift(1)
+        li_atr산출 = [(sri_고가 - sri_저가), (sri_고가 - sri_전일종가).abs(), (sri_저가 - sri_전일종가).abs()]
+        df_초봉['ATR14'] = pd.concat(li_atr산출, axis=1).max(axis=1).rolling(14).mean()
 
         # 매수매도 정보 생성
         b_보유신호, b_매수신호, b_매도신호 = False, False, False
@@ -566,17 +540,18 @@ class AnalyzerBot:
         for dt_시점 in df_초봉.index:
             # 기준정보 확인
             s_시점 = dt_시점.strftime('%H:%M:%S')
-            n_현재가 = df_1초봉.loc[dt_시점, '종가']
+            n_현재가 = df_1초봉.loc[dt_시점, '종가'] if dt_시점 in df_1초봉.index else df_초봉.loc[dt_시점, '시가']
 
             # 기준봉 준비 - 현재시점 이전 봉 데이터
-            # df_기준봉 = df_초봉[df_초봉.index < dt_시점].copy()
-            # df_기준봉 = df_초봉.loc[:dt_시점].iloc[:-1]
-            # df_기준봉 = df_기준봉[-1:]
             n_idx = df_초봉.index.get_loc(dt_시점)
-            if n_idx < n_기준봉길이: continue
             df_기준봉 = df_초봉.iloc[n_idx - n_기준봉길이 : n_idx]
+            df_기준봉 = df_기준봉.dropna(subset=['종가ma20', '종가ma60', '거래량ma5', '고가20', 'ATR14'])
+            if df_기준봉.empty: continue
 
             # 매수 검증
+
+            ##### 여기서부터 검증 #####
+
             if not b_보유신호:
                 # 매수신호 생성
                 dic_args_종목.update(매수봇_s_탐색시간=s_시점, 매수봇_n_현재가=n_현재가)
@@ -689,10 +664,10 @@ class AnalyzerBot:
 # noinspection PyNoneFunctionAssignment,NonAsciiCharacters
 def run():
     """ 실행 함수 """
-    a = AnalyzerBot(b_디버그모드=False)
+    a = AnalyzerBot(b_디버그모드=True, s_시작일자='20251001')
     # ret = a.sync_소스파일()
-    # ret = a.pick_대상선정()
-    ret = [a.make_매매신호(n_봉수=봉수) for 봉수 in [1]]
+    # ret = a.find_일봉확인()
+    ret = [a.make_매매신호(n_봉수=봉수) for 봉수 in [5]]
     ret = [a.make_매수매도(n_봉수=봉수) for 봉수 in [1]]
     ret = [a.make_매매내역(n_봉수=봉수) for 봉수 in [1]]
     ret = [a.make_수익내역(n_봉수=봉수) for 봉수 in [1]]
