@@ -74,7 +74,7 @@ class CollectorBot:
         Tool.df저장(df=df_추천종목, path=os.path.join(folder_타겟, f'df_종목추천_거북이_{self.s_오늘}'))
 
         # 카톡송부
-        s_메세지 = f'### [{self.s_오늘}] 거북이 추천종목 {len(li_추천종목)}개 ###'
+        s_메세지 = f'## [{self.s_오늘}] 거북이 추천종목 {len(li_추천종목)}개 ##'
         for s_종목코드 in li_추천종목:
             s_메세지 = s_메세지 + f'\n  {dic_코드2종목명[s_종목코드]}({s_종목코드})'
         self.kakao.send_메세지(s_사용자='알림봇', s_수신인='여봉이', s_메세지=s_메세지)
