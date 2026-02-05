@@ -40,20 +40,6 @@ class AnalyzerBot:
         self.folder_백테스팅 = dic_폴더정보['분석|백테스팅']
         os.makedirs(self.folder_백테스팅, exist_ok=True)
 
-        # # 추가 폴더 정의
-        # self.folder_대상선정 = os.path.join(self.folder_백테스팅, '10_대상선정')
-        # self.folder_매매신호 = os.path.join(self.folder_백테스팅, '20_매매신호')
-        # self.folder_매수매도 = os.path.join(self.folder_백테스팅, '30_매수매도')
-        # self.folder_매매내역 = os.path.join(self.folder_백테스팅, '40_매매내역')
-        # self.folder_수익내역 = os.path.join(self.folder_백테스팅, '50_수익내역')
-        # self.folder_수익요약 = os.path.join(self.folder_백테스팅, '60_수익요약')
-        # os.makedirs(self.folder_대상선정, exist_ok=True)
-        # os.makedirs(self.folder_매매신호, exist_ok=True)
-        # os.makedirs(self.folder_매수매도, exist_ok=True)
-        # os.makedirs(self.folder_매매내역, exist_ok=True)
-        # os.makedirs(self.folder_수익내역, exist_ok=True)
-        # os.makedirs(self.folder_수익요약, exist_ok=True)
-
         # 기준정보 정의
         self.s_오늘 = pd.Timestamp.now().strftime('%Y%m%d')
         self.s_시작일자 = '20260101' if s_시작일자 is None else s_시작일자
@@ -107,10 +93,10 @@ class AnalyzerBot:
         # 대상일자 확인
         li_전체일자 = sorted(re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_소스)
                          if f'{file_소스}_1초봉' in 파일 and '.pkl' in 파일)
+        li_전체일자 = li_전체일자[-3:]
         li_완료일자 = [re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_타겟)
                    if file_타겟 in 파일 and '.pkl' in 파일]
         li_대상일자 = [일자 for 일자 in li_전체일자 if 일자 not in li_완료일자]
-        # li_대상일자 = li_대상일자[:3]
 
         # 일자별 매수매도 정보 생성
         for s_일자 in li_대상일자:
@@ -375,13 +361,13 @@ class AnalyzerBot:
             n_수익률 = df_수익내역['수익률'].sum() if len(df_수익내역) > 0 else 0
             self.make_로그(f'{s_일자} 완료\n - {n_거래종목수:,.0f}종목, 거래 {n_거래건수:,.0f}건, 수익 {n_수익률:,.1f}%')
 
-    def make_수익요약(self, n_봉수):
+    def make_수익누적(self, n_봉수):
         """ 일별 수익 요약 및 리포트 발행 """
         # 기준정보 정의
         folder_소스 = os.path.join(self.folder_백테스팅, '50_수익내역')
         file_소스 = f'df_수익내역'
-        folder_타겟 = os.path.join(self.folder_백테스팅, '60_수익요약')
-        file_타겟 = f'df_수익요약'
+        folder_타겟 = os.path.join(self.folder_백테스팅, '50_수익내역_리포트누적')
+        file_타겟 = f'df_수익누적'
         os.makedirs(folder_타겟, exist_ok=True)
 
         # 대상일자 확인
@@ -400,65 +386,136 @@ class AnalyzerBot:
 
             # 기준정보 정의
             n_일수 = len(dic_수익내역)
-            li_dic수익요약 = list()
+            li_dic수익누적 = list()
 
-            # 수익요약 생성 - 전체
+            # 수익누적 생성 - 전체
             df_수익내역_전체 = pd.concat(dic_수익내역.values(), axis=0)
-            dic_수익요약_전체 = dict(일자='Total', 종목코드='Total', 종목명='Total',
+            dic_수익누적_전체 = dict(일자='Total', 종목코드='Total', 종목명='Total',
                                거래수=len(df_수익내역_전체),
                                수익률sum=df_수익내역_전체['수익률'].sum() if not df_수익내역_전체.empty else None,
                                보유초mean=df_수익내역_전체['보유초'].mean())
             for s_매도사유 in self.li_매도사유:
                 df_수익내역_전체_매도사유 = df_수익내역_전체[df_수익내역_전체['매도사유'] == s_매도사유]
-                dic_수익요약_전체.update({
+                dic_수익누적_전체.update({
                     f'{s_매도사유}_거래수': len(df_수익내역_전체_매도사유),
                     f'{s_매도사유}_수익률sum': df_수익내역_전체_매도사유['수익률'].sum() if not df_수익내역_전체_매도사유.empty else None,
                     f'{s_매도사유}_보유초mean': df_수익내역_전체_매도사유['보유초'].mean()
                 })
-            li_dic수익요약.append(dic_수익요약_전체)
-            # df_수익요약_전체 = pd.DataFrame([dic_수익요약_전체])
+            li_dic수익누적.append(dic_수익누적_전체)
 
-            # 수익요약 생성 - 전체 일평균
-            dic_수익요약_전체일평균 = dict(일자='Total', 종목코드='일평균', 종목명=f'{n_일수}일평균',
-                               거래수=dic_수익요약_전체['거래수'] / n_일수,
-                               수익률sum=dic_수익요약_전체['수익률sum'] / n_일수,
-                               보유초mean=dic_수익요약_전체['보유초mean'])
+            # 수익누적 생성 - 전체 일평균
+            dic_수익누적_전체일평균 = dict(일자='Total', 종목코드='일평균', 종목명=f'{n_일수}일평균',
+                               거래수=dic_수익누적_전체['거래수'] / n_일수,
+                               수익률sum=dic_수익누적_전체['수익률sum'] / n_일수,
+                               보유초mean=dic_수익누적_전체['보유초mean'])
             for s_매도사유 in self.li_매도사유:
-                dic_수익요약_전체일평균.update({
-                    f'{s_매도사유}_거래수': dic_수익요약_전체[f'{s_매도사유}_거래수'] / n_일수
-                                            if dic_수익요약_전체[f'{s_매도사유}_거래수'] is not None else 0,
-                    f'{s_매도사유}_수익률sum': dic_수익요약_전체[f'{s_매도사유}_수익률sum'] / n_일수
-                                            if dic_수익요약_전체[f'{s_매도사유}_수익률sum'] is not None else 0,
-                    f'{s_매도사유}_보유초mean': dic_수익요약_전체[f'{s_매도사유}_보유초mean']
+                dic_수익누적_전체일평균.update({
+                    f'{s_매도사유}_거래수': dic_수익누적_전체[f'{s_매도사유}_거래수'] / n_일수
+                                            if dic_수익누적_전체[f'{s_매도사유}_거래수'] is not None else 0,
+                    f'{s_매도사유}_수익률sum': dic_수익누적_전체[f'{s_매도사유}_수익률sum'] / n_일수
+                                            if dic_수익누적_전체[f'{s_매도사유}_수익률sum'] is not None else 0,
+                    f'{s_매도사유}_보유초mean': dic_수익누적_전체[f'{s_매도사유}_보유초mean']
                 })
-            li_dic수익요약.append(dic_수익요약_전체일평균)
-            # df_수익요약_전체일평균 = pd.DataFrame([dic_수익요약_전체일평균])
+            li_dic수익누적.append(dic_수익누적_전체일평균)
 
-            # 수익요약 생성 - 일별
+            # 수익누적 생성 - 일별
             for 일자_일별, df_수익내역_일별 in dic_수익내역.items():
-                dic_수익요약_일별 = dict(일자=일자_일별, 종목코드='일별', 종목명='일별',
+                dic_수익누적_일별 = dict(일자=일자_일별, 종목코드='일별', 종목명='일별',
                                    거래수=len(df_수익내역_일별),
                                    수익률sum=df_수익내역_일별['수익률'].sum() if not df_수익내역_일별.empty else 0,
                                    보유초mean=df_수익내역_일별['보유초'].mean() if not df_수익내역_일별.empty else None)
                 for s_매도사유 in self.li_매도사유:
                     df_수익내역_일별_매도사유 = df_수익내역_일별[df_수익내역_일별['매도사유'] == s_매도사유] if not df_수익내역_일별.empty else pd.DataFrame()
-                    dic_수익요약_일별.update({
+                    dic_수익누적_일별.update({
                         f'{s_매도사유}_거래수': len(df_수익내역_일별_매도사유),
                         f'{s_매도사유}_수익률sum': df_수익내역_일별_매도사유['수익률'].sum() if not df_수익내역_일별_매도사유.empty else 0,
                         f'{s_매도사유}_보유초mean': df_수익내역_일별_매도사유['보유초'].mean() if not df_수익내역_일별_매도사유.empty else None
                     })
-                li_dic수익요약.append(dic_수익요약_일별)
+                li_dic수익누적.append(dic_수익누적_일별)
 
-            # 수익요약 생성
-            df_수익요약 = pd.DataFrame(li_dic수익요약)
+            # 수익누적 생성
+            df_수익누적 = pd.DataFrame(li_dic수익누적)
 
             # 결과파일 저장
-            Tool.df저장(df=df_수익요약, path=os.path.join(folder_타겟, f'{file_타겟}_{s_일자}_{n_봉수}초봉'))
+            Tool.df저장(df=df_수익누적, path=os.path.join(folder_타겟, f'{file_타겟}_{s_일자}_{n_봉수}초봉'))
 
             # 로그 기록
-            n_거래건수 = df_수익요약['거래수'].values[0]
-            n_수익률 = df_수익요약['수익률sum'].values[0]
+            n_거래건수 = df_수익누적['거래수'].values[0]
+            n_수익률 = df_수익누적['수익률sum'].values[0]
             self.make_로그(f'{s_일자} 완료\n - 총거래 {n_거래건수:,.0f}건, 총수익 {n_수익률:,.1f}%')
+
+    def make_자금운영(self, n_봉수):
+        """ 수익내역 기준으로 자금운영 기법 적용하여 손익 확인 """
+        # 기준정보 정의
+        folder_소스 = os.path.join(self.folder_백테스팅, '50_수익내역')
+        file_소스 = f'df_수익내역'
+        folder_타겟 = os.path.join(self.folder_백테스팅, '60_자금운영')
+        file_타겟 = f'df_자금운영'
+        os.makedirs(folder_타겟, exist_ok=True)
+
+        # 대상일자 확인
+        li_전체일자 = sorted(re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_소스)
+                        if file_소스 in 파일 and f'{n_봉수}초봉' in 파일 and '.pkl' in 파일)
+        li_완료일자 = [re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_타겟)
+                        if file_타겟 in 파일 and f'{n_봉수}초봉'in 파일 and '.pkl' in 파일]
+        li_대상일자 = [일자 for 일자 in li_전체일자 if 일자 not in li_완료일자]
+
+        # 일자별 매수매도 정보 생성
+        for s_일자 in li_대상일자:
+            # 소스파일 불러오기
+            df_매매내역 = pd.read_pickle(os.path.join(folder_소스, f'{file_소스}_{s_일자}_{n_봉수}초봉.pkl'))
+            gr_매매내역 = df_매매내역.groupby('매수시간')
+
+            # 조회순위 불러오기
+            df_조회순위 = pd.read_csv(os.path.join(self.folder_조회순위, f'df_조회순위_{s_일자}.csv'),
+                                  encoding='cp949', dtype=str)
+
+            # 시간별 검증
+            li_df수익내역 = list()
+            s_매도시간 = '00:00:00'
+            for s_매수시간, df_매매내역_시점 in gr_매매내역:
+                # 매도시간 확인
+                if s_매수시간 < s_매도시간:
+                    continue
+
+                # 감시종목 확인 - 조회순위 기준
+                gr_조회순위_시점 = df_조회순위.loc[df_조회순위['시간'] <= s_매수시간, :].copy().groupby('시간')
+                li_감시종목 = list()
+                for s_시간, df_조회순위_시점 in gr_조회순위_시점:
+                    df_조회순위_시점 = df_조회순위_시점.sort_values('빅데이터순위')
+                    li_감시종목_조회 = df_조회순위_시점['종목코드'].tolist()
+                    li_감시종목_이전 = [종목 for 종목 in li_감시종목 if 종목 not in li_감시종목_조회]
+                    li_감시종목_전체 = li_감시종목_조회 + li_감시종목_이전
+                    li_감시종목 = li_감시종목_전체[:100]
+
+                # 매수종목 선정
+                li_매수종목 = [종목 for 종목 in li_감시종목 if 종목 in df_매매내역_시점['종목코드'].values]
+                s_매수종목 = li_매수종목[0] if len(li_매수종목) > 0 else None
+                df_매매내역_시점_종목 = df_매매내역_시점.loc[df_매매내역_시점['종목코드'] == s_매수종목, :]
+                li_df수익내역.append(df_매매내역_시점_종목)
+
+                # 매도시간 업데이트
+                s_매도시간 = df_매매내역_시점_종목['매도시간'].values[0] if not df_매매내역_시점_종목.empty else s_매도시간
+
+            # 수익정리 생성
+            df_수익내역 = pd.concat(li_df수익내역, axis=0) if len(li_df수익내역) > 0 else pd.DataFrame()
+
+            # 리포트 생성
+            df_리포트 = self._report_매매이력(df_매매이력=df_수익내역)
+
+            # 결과파일 저장
+            Tool.df저장(df=df_수익내역, path=os.path.join(folder_타겟, f'{file_타겟}_{s_일자}_{n_봉수}초봉'))
+
+            # 리포트 저장
+            folder_리포트 = f'{folder_타겟}_리포트'
+            os.makedirs(folder_리포트, exist_ok=True)
+            Tool.df저장(df=df_리포트, path=os.path.join(folder_리포트, f'{file_타겟}_리포트_{s_일자}_{n_봉수}초봉'))
+
+            # 로그 기록
+            n_거래종목수 = len(df_수익내역['종목코드'].unique()) if len(df_수익내역) > 0 else 0
+            n_거래건수 = len(df_수익내역) if len(df_수익내역) > 0 else 0
+            n_수익률 = df_수익내역['수익률'].sum() if len(df_수익내역) > 0 else 0
+            self.make_로그(f'{s_일자} 완료\n - {n_거래종목수:,.0f}종목, 거래 {n_거래건수:,.0f}건, 수익 {n_수익률:,.1f}%')
 
     @staticmethod
     def _make_매매신호_종목(dic_매개변수):
@@ -491,7 +548,6 @@ class AnalyzerBot:
         # 매수매도 정보 생성
         b_보유신호, b_매수신호, b_매도신호 = False, False, False
         dic_매매신호 = dict()
-        # n_기준봉길이 = 1
         for dt_시점 in df_초봉.index:
             # 기준정보 확인
             s_시점 = dt_시점.strftime('%H:%M:%S')
@@ -499,9 +555,6 @@ class AnalyzerBot:
 
             # 기준봉 준비 - 현재시점 이전 봉 데이터
             n_idx = df_초봉.index.get_loc(dt_시점)
-            # df_기준봉 = df_초봉.iloc[n_idx - n_기준봉길이 : n_idx]
-            # df_기준봉 = df_기준봉.dropna(subset=['종가ma20', '종가ma60', '거래량ma5', '고가20', 'ATR14'])
-            # if df_기준봉.empty: continue
             df_기준봉전체 = df_초봉.iloc[:n_idx]
             df_기준봉전체 = df_기준봉전체.dropna(subset=['종가ma20', '종가ma60', '거래량ma5', '고가20', 'ATR14'])
             if df_기준봉전체.empty: continue
@@ -565,7 +618,6 @@ class AnalyzerBot:
             # 신호 및 정보 업데이트 - 보유신호 업데이트 후 매수/매도신호 초기화
             b_보유신호 = False if b_매도신호 else b_보유신호
             b_매수신호, b_매도신호 = False, False
-            # self.dic_args[s_종목코드] = dic_args_종목
 
         # 결과 정리
         df_매매신호 = pd.DataFrame(dic_매매신호).sort_index()
@@ -573,7 +625,6 @@ class AnalyzerBot:
         df_매매신호 = df_매매신호.loc[:, li_컬럼명_앞 + [컬럼 for 컬럼 in df_매매신호.columns if 컬럼 not in li_컬럼명_앞]]
 
         # csv 저장
-        # folder = os.path.join(f'{self.folder_매매신호}_종목별', f'매매신호_{s_일자}')
         folder = os.path.join(f'{folder_타겟}_종목별', f'매매신호_{s_일자}')
         os.makedirs(folder, exist_ok=True)
         df_매매신호.to_csv(os.path.join(folder, f'{file_타겟}_{s_일자}_{n_봉수}초봉_{s_종목코드}_{s_종목명}.csv'),
@@ -622,17 +673,19 @@ class AnalyzerBot:
         return df_리포트
 
 
-# noinspection PyNoneFunctionAssignment,NonAsciiCharacters
+# noinspection PyNoneFunctionAssignment,NonAsciiCharacters,PyPep8Naming
 def run():
     """ 실행 함수 """
     a = AnalyzerBot(b_디버그모드=True, s_시작일자='20251001')
+    li_봉수 = [5]
     # ret = a.sync_소스파일()
     ret = a.find_일봉확인()
-    ret = [a.make_매매신호(n_봉수=봉수) for 봉수 in [5]]
-    ret = [a.make_매수매도(n_봉수=봉수) for 봉수 in [5]]
-    ret = [a.make_매매내역(n_봉수=봉수) for 봉수 in [5]]
-    ret = [a.make_수익내역(n_봉수=봉수) for 봉수 in [5]]
-    ret = [a.make_수익요약(n_봉수=봉수) for 봉수 in [5]]
+    ret = [a.make_매매신호(n_봉수=봉수) for 봉수 in li_봉수] # 매수매도 logic에 따른 신호 생성
+    ret = [a.make_매수매도(n_봉수=봉수) for 봉수 in li_봉수] # 매수매도 신호 존재하는 종목의 데이터만 수집
+    ret = [a.make_매매내역(n_봉수=봉수) for 봉수 in li_봉수] # 매매내역 정보만 한줄로 표기       # 서브폴더 3개 생성 리포트, 리포트누적, 종목차트
+    ret = [a.make_수익내역(n_봉수=봉수) for 봉수 in li_봉수] # 시간중복 제거 후 실매매 정보 표기  # 서브폴더 3개 생성 리포트, 리포트누적, 종목차트
+    ret = [a.make_수익누적(n_봉수=봉수) for 봉수 in li_봉수] # 이후꺼는 모두 삭제하고 위에랑 통합 (기대수익, 자금운영 모두 위에서 표기)
+    ret = [a.make_자금운영(n_봉수=봉수) for 봉수 in li_봉수] # 이후꺼는 모두 삭제하고 위에랑 통합 (기대수익, 자금운영 모두 위에서 표기)
 
 if __name__ == '__main__':
     try:
