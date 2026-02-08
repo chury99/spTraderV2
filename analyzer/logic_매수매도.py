@@ -100,7 +100,7 @@ def judge_매도신호(df_기준봉, dic_args):
     # n_리스크 = 4 * n_ATR14_매수
     # n_리스크 = 2 * n_ATR14_매수
     n_리스크 = 3 * n_ATR14_매수
-    dic_매도신호.update(매도봇_n_수익률=n_수익률)
+    dic_매도신호.update(매도봇_n_수익률=n_수익률, 매도봇_n_리스크=n_리스크)
 
     n_매수량 = df_기준봉['매수량'].values[0]
     n_매도량 = df_기준봉['매도량'].values[0]
