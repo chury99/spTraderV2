@@ -40,8 +40,8 @@ class AnalyzerBot:
         self.folder_대상종목 = dic_폴더정보['데이터|대상종목']
         self.folder_조건검색 = dic_폴더정보['데이터|조건검색']
         self.folder_조회순위 = dic_폴더정보['데이터|조회순위']
-        self.folder_종목분석 = dic_폴더정보['분석|종목분석']
-        os.makedirs(self.folder_종목분석, exist_ok=True)
+        self.folder_일봉분석 = dic_폴더정보['분석|일봉분석']
+        os.makedirs(self.folder_일봉분석, exist_ok=True)
 
         # 시작일자 정의
         n_보관기간 = int(dic_config['파일보관기간(일)_analyzer'])
@@ -92,7 +92,7 @@ class AnalyzerBot:
         # 기준정보 정의
         folder_소스 = os.path.join(self.folder_차트캐시, f'일봉1')
         file_소스 = f'dic_차트캐시'
-        folder_타겟 = os.path.join(self.folder_종목분석, '10_상승후보')
+        folder_타겟 = os.path.join(self.folder_일봉분석, '10_상승후보')
         file_타겟 = f'df_상승후보'
         os.makedirs(folder_타겟, exist_ok=True)
 
@@ -118,9 +118,9 @@ class AnalyzerBot:
     def make_매매정보(self, n_포함일수=5):
         """ 상승후보 종목 대상으로 일봉기준 매매신호 생성 후 저장 """
         # 기준정보 정의
-        folder_소스 = os.path.join(self.folder_종목분석, '10_상승후보')
+        folder_소스 = os.path.join(self.folder_일봉분석, '10_상승후보')
         file_소스 = f'df_상승후보'
-        folder_타겟 = os.path.join(self.folder_종목분석, '20_매매정보')
+        folder_타겟 = os.path.join(self.folder_일봉분석, '20_매매정보')
         file_타겟 = f'df_매매정보'
         os.makedirs(folder_타겟, exist_ok=True)
 
@@ -219,9 +219,9 @@ class AnalyzerBot:
     def make_수익정보(self):
         """ 매매정보를 바탕으로 일별 수익정보 생성 """
         # 기준정보 정의
-        folder_소스 = os.path.join(self.folder_종목분석, '20_매매정보')
+        folder_소스 = os.path.join(self.folder_일봉분석, '20_매매정보')
         file_소스 = f'df_매매정보'
-        folder_타겟 = os.path.join(self.folder_종목분석, '30_수익정보')
+        folder_타겟 = os.path.join(self.folder_일봉분석, '30_수익정보')
         file_타겟 = f'df_수익정보'
         os.makedirs(folder_타겟, exist_ok=True)
 
@@ -298,9 +298,9 @@ class AnalyzerBot:
     def make_수익정보_old(self):
         """ 매매정보를 바탕으로 일별 수익정보 생성 """
         # 기준정보 정의
-        folder_소스 = os.path.join(self.folder_종목분석, '20_매매정보')
+        folder_소스 = os.path.join(self.folder_일봉분석, '20_매매정보')
         file_소스 = f'df_매매정보'
-        folder_타겟 = os.path.join(self.folder_종목분석, '30_수익정보')
+        folder_타겟 = os.path.join(self.folder_일봉분석, '30_수익정보')
         file_타겟 = f'df_수익정보'
         os.makedirs(folder_타겟, exist_ok=True)
 

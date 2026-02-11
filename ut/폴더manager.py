@@ -42,7 +42,7 @@ def define_폴더정보():
     folder_분석 = os.path.join(folder_work, '분석')
     dic_폴더정보['분석'] = os.path.join(folder_분석)
     dic_폴더정보['분석|백테스팅'] = os.path.join(folder_분석, '백테스팅')
-    dic_폴더정보['분석|종목분석'] = os.path.join(folder_분석, '종목분석')
+    dic_폴더정보['분석|일봉분석'] = os.path.join(folder_분석, '일봉분석')
 
 
 
