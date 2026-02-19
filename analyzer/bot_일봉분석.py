@@ -1,11 +1,8 @@
 import os
 import sys
 import json
-import time
 import re
 import multiprocessing as mp
-
-from fontTools.varLib.models import nonNone
 
 # win용 디버거 설정
 if sys.platform == 'win32':
@@ -13,8 +10,6 @@ if sys.platform == 'win32':
     matplotlib.use('TkAgg')
 
 import pandas as pd
-from fontTools.ttLib.tables.otTables import DeltaSetIndexMap
-from tqdm import tqdm
 
 import ut.로그maker, ut.폴더manager, ut.도구manager as Tool, ut.차트maker
 import analyzer.logic_상승후보
@@ -99,7 +94,8 @@ class AnalyzerBot:
         os.makedirs(folder_타겟, exist_ok=True)
 
         # 대상일자 확인
-        li_전체일자 = sorted(re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_소스) if '.pkl' in 파일)
+        li_전체일자 = sorted(re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_소스)
+                         if file_소스 in 파일 and '.pkl' in 파일)
         li_전체일자 = [일자 for 일자 in li_전체일자 if 일자 >= self.s_시작일자]
         li_완료일자 = [re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_타겟) if '.pkl' in 파일]
         li_대상일자 = [일자 for 일자 in li_전체일자 if 일자 not in li_완료일자]
@@ -117,7 +113,7 @@ class AnalyzerBot:
             # 로그 기록
             self.make_로그(f'{s_일자} 완료\n - 전체 {len(df_상승후보):,.0f}종목, 상승후보 {len(df_후보만):,.0f}종목')
 
-    def make_매매정보(self, n_포함일수=5):
+    def make_매매정보(self):
         """ 상승후보 종목 대상으로 일봉기준 매매신호 생성 후 저장 """
         # 기준정보 정의
         folder_소스 = os.path.join(self.folder_일봉분석, '10_상승후보')
@@ -186,8 +182,9 @@ class AnalyzerBot:
                 # n_기준수익률 = 0 if b_보유종목 else 5
                 n_일절기준 = 10
                 n_손절기준 = -3
+                n_경과일기준 = 5
                 n_수익률 = (n_종가 / n_매수가 - 1) * 100 - 0.2
-                n_매도가 = n_종가 if (n_수익률 > n_일절기준) or (n_수익률 < n_손절기준) or (n_경과일 >= 5) else None
+                n_매도가 = n_종가 if (n_수익률 > n_일절기준) or (n_수익률 < n_손절기준) or (n_경과일 >= n_경과일기준) else None
                 # n_매도가 = n_종가 if n_수익률 > 0 or n_경과일 >= 2 else None
                 s_매도일 = s_일자 if n_매도가 is not None else None
 
@@ -259,7 +256,6 @@ class AnalyzerBot:
             #                     if len(li_파일) > 0 else pd.DataFrame()
             df_매매정보_누적 = pd.read_pickle(os.path.join(f'{folder_소스}_누적', f'{file_소스}_누적_{s_일자}.pkl'))
             df_매매정보_당일 = pd.read_pickle(os.path.join(folder_소스, f'{file_소스}_{s_일자}.pkl'))
-            # df_매매정보 = pd.read_pickle(os.path.join(folder_소스, f'{file_소스}_{s_일자}.pkl'))
             li_정리일자 = ['Total'] + sorted(df_매매정보_누적['일자'].unique())
 
             # 수익정보 생성
@@ -326,9 +322,9 @@ class AnalyzerBot:
         """ 매매정보 기준으로 수익금액 생성 후 리터 """
         # 기준정보 정의
         df_매매정보 = df_매매정보.sort_values(['일자', '경과일']).reset_index(drop=True)
-        df_매매정보_매수 = df_매매정보[df_매매정보['경과일'] == 0]
-        df_매매정보_매도 = df_매매정보[pd.notna(df_매매정보['매도일'])]
-        li_대상일자 = sorted(df_매매정보['일자'].unique())
+        # df_매매정보_매수 = df_매매정보[df_매매정보['경과일'] == 0]
+        # df_매매정보_매도 = df_매매정보[pd.notna(df_매매정보['매도일'])]
+        # li_대상일자 = sorted(df_매매정보['일자'].unique())
 
         # 일별 진행
         s_일자 = None
