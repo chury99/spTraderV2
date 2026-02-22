@@ -7,10 +7,75 @@ import multiprocessing as mp
 
 import pandas as pd
 import matplotlib.pyplot as plt
+from fontTools.varLib.models import nonNone
+from pandas.core.methods.selectn import SelectNSeries
 from tqdm import tqdm
 
 import ut.로그maker, ut.폴더manager, ut.도구manager as Tool
 import xapi.RestAPI_kiwoom, xapi.WebsocketAPI_kiwoom
+
+
+# noinspection PyPep8Naming,NonAsciiCharacters,SpellCheckingInspection
+def make_캔들차트(ax, df_차트, s_봉구분, s_차트구분, b_legend=True):
+    """ df로 입력받은 일봉 데이터로 차트 생성하여 리턴 """
+    # 기준정보 정의
+    dic_색상 = dict(파랑='C0', 주황='C1', 녹색='C2', 빨강='C3', 보라='C4', 고동='C5', 분홍='C6', 회색='C7', 풀색='C8', 하늘='C9')
+    df_차트 = df_차트.sort_values('일자') if '일봉' in s_봉구분 else\
+            df_차트.sort_values(['일자', '시간']) if '분봉' in s_봉구분 else\
+            df_차트.reset_index(drop=True).sort_values(['체결시간']) if '초봉' in s_봉구분 else None
+
+    # 그래프용 데이터 정의
+    li_일시 = [f'{일자[4:6]}-{일자[6:8]}' for 일자 in df_차트['일자']] if '일봉' in s_봉구분 else\
+            [시간[:5] for 시간 in df_차트['시간']] if '분봉' in s_봉구분 else\
+            [시간 for 시간 in df_차트['체결시간']] if '초봉' in s_봉구분 else None
+    ary_시가 = df_차트['시가'].values
+    ary_고가 = df_차트['고가'].values
+    ary_저가 = df_차트['저가'].values
+    ary_종가 = df_차트['종가'].values
+    ary_거래량 = df_차트['거래량'].values
+    ary_바디 = (df_차트['종가'] - df_차트['시가']).replace(0, 0.5).values
+    li_색상_캔들 = [dic_색상['파랑'] if 바디 < 0 else dic_색상['빨강'] for 바디 in ary_바디]
+    li_색상_거래량 = [dic_색상['파랑'] if 거래량차이 < 0 else dic_색상['빨강'] for 거래량차이 in (df_차트['거래량'] - df_차트['거래량'].shift(1))]
+    ary_종가ma5 = df_차트['종가ma5'].values
+    ary_종가ma10 = df_차트['종가ma10'].values
+    ary_종가ma20 = df_차트['종가ma20'].values
+    ary_종가ma60 = df_차트['종가ma60'].values
+    ary_종가ma120 = df_차트['종가ma120'].values
+    ary_거래량ma5 = df_차트['거래량ma5'].values
+    ary_거래량ma20 = df_차트['거래량ma20'].values
+    ary_거래량ma60 = df_차트['거래량ma60'].values
+    ary_거래량ma120 = df_차트['거래량ma120'].values
+
+    # 그래프 설정
+    if s_차트구분 == '캔들':
+        ax.bar(li_일시, height=ary_바디, bottom=ary_시가, width=0.8, color=li_색상_캔들)
+        ax.vlines(li_일시, ary_저가, ary_고가, lw=0.5, color=li_색상_캔들)
+        ax.plot(li_일시, ary_종가ma5, lw=0.5, color=dic_색상['분홍'], label='ma5')
+        ax.plot(li_일시, ary_종가ma10, lw=0.5, color=dic_색상['파랑'], label='ma10')
+        ax.plot(li_일시, ary_종가ma20, lw=2, color=dic_색상['주황'], label='ma20', alpha=0.5)
+        ax.plot(li_일시, ary_종가ma60, lw=0.5, color=dic_색상['녹색'], label='ma60')
+        ax.plot(li_일시, ary_종가ma120, lw=2, color='black', label='ma120', alpha=0.5)
+
+        # 스케일 설정
+        li_대상컬럼 = ['저가', '고가', '종가ma5', '종가ma10', '종가ma20', '종가ma60', '종가ma120']
+        n_최소값 = df_차트.loc[:, li_대상컬럼].min().min()
+        n_최대값 = df_차트.loc[:, li_대상컬럼].max().max()
+        ax.set_ylim(n_최소값 * 0.98, n_최대값 * 1.02)
+
+    if s_차트구분 == '거래량':
+        ax.bar(li_일시, ary_거래량, width=0.8, color=li_색상_거래량)
+        ax.plot(li_일시, ary_거래량ma5, lw=0.5, color=dic_색상['분홍'], label='ma5')
+        ax.plot(li_일시, ary_거래량ma20, lw=2, color=dic_색상['주황'], label='ma20', alpha=0.5)
+        ax.plot(li_일시, ary_거래량ma60, lw=0.5, color=dic_색상['녹색'], label='ma60')
+        ax.plot(li_일시, ary_거래량ma120, lw=0.5, color='black', label='ma120')
+
+    # 뷰 설정
+    ax.grid(True, color='gray', linestyle='--', linewidth=0.5, alpha=0.5)
+    # if b_legend:
+    #     ax.legend(loc='upper left', fontsize=8)
+    ret = ax.legend(loc='upper left', fontsize=8) if b_legend else None
+
+    return li_일시
 
 
 # noinspection PyPep8Naming,NonAsciiCharacters,SpellCheckingInspection
