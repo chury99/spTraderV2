@@ -60,6 +60,12 @@ class AnalyzerBot:
         # 차트maker 정의
         self.chart = ut.차트maker.ChartMaker()
 
+        # 카카오 API 연결
+        sys.path.append(dic_config['folder_kakao'])
+        # noinspection PyUnresolvedReferences
+        import API_kakao
+        self.kakao = API_kakao.KakaoAPI()
+
         # 로그 기록
         self.make_로그(f'구동 시작')
 
@@ -399,7 +405,7 @@ class AnalyzerBot:
                           f' - 총거래수 {n_총거래수:,.0f}건, 평균수익 {n_일평균수익률:,.1f}%, 기대수익 {n_기대수익:,.2f}\n'
                           f' - 수익금액 {n_수익금액:,.0f}원 ({n_금액수익률:,.1f}%)')
 
-    def make_매매일보(self, n_봉수):
+    def make_매매일보(self, n_봉수, b_카톡):
         """ 매매결과를 보고서 형태로 정리하여 저장 """
         # 기준정보 정의
         folder_소스 = os.path.join(self.folder_백테스팅, '50_수익내역')
@@ -465,10 +471,28 @@ class AnalyzerBot:
             # 매매일보 저장
             # fig.savefig(os.path.join(folder_타겟, f'{file_타겟}_{s_일자}_{n_봉수}초봉.png'))
             # fig.savefig(os.path.join(folder_타겟, f'{file_타겟}_{s_일자}_{n_봉수}초봉.svg'))
-            path_저장 = os.path.join(folder_타겟, f'{file_타겟}_{s_일자}_{n_봉수}초봉.svg')
-            fig.savefig(path_저장)
+            file_저장 = f'{file_타겟}_{s_일자}_{n_봉수}초봉.svg'
+            fig.savefig(os.path.join(folder_타겟, file_저장))
             if sys.platform == 'darwin':
-                os.system(f'xattr -d com.apple.quarantine {path_저장} 2>/dev/null')
+                os.system(f'xattr -d com.apple.quarantine {os.path.join(folder_타겟, file_저장)} 2>/dev/null')
+
+            # 웹서버 복사
+            s_전략명 = 't8전략'
+            li_복사한파일명, li_삭제한파일명, dic_서버정보 = Tool.sftp파일업로드(folder_로컬=folder_타겟, folder_서버=s_전략명,
+                                                            s_파일명=file_저장, n_파일보관일수=30)
+
+            # 메세지 송부
+            if b_카톡 and s_일자 == li_대상일자[-1]:
+                # 기준정보 정의
+                s_url주소 = f'http://{dic_서버정보['sftp']['hostname']}/kakao/{s_전략명}'
+
+                # 일보 송부
+                self.kakao.send_메세지(s_사용자='알림봇', s_수신인='여봉이', s_메세지=f'[{s_일자}] 백테스팅 완료',
+                                    s_버튼이름=f'[{s_전략명}] {file_저장}', s_연결url=f'{s_url주소}/{file_저장}')
+
+                # 폴더 송부
+                self.kakao.send_메세지(s_사용자='알림봇', s_수신인='여봉이', s_메세지=f'[{s_일자}] 백테스팅 완료',
+                                    s_버튼이름=f'[{s_전략명}] 일보 폴더', s_연결url=f'{s_url주소}/')
 
             # 로그 기록
             self.make_로그(f'{s_일자} 완료\n'
@@ -1036,7 +1060,7 @@ def run():
     ret = [a.make_매수매도(n_봉수=봉수) for 봉수 in li_봉수] # 매수매도 신호 존재하는 종목의 데이터만 수집
     ret = [a.make_매매내역(n_봉수=봉수) for 봉수 in li_봉수] # 매매내역 정보만 한줄로 표기
     ret = [a.make_수익내역(n_봉수=봉수) for 봉수 in li_봉수] # 시간중복 제거 후 실매매 정보 표기
-    ret = [a.make_매매일보(n_봉수=봉수) for 봉수 in li_봉수] # 시간중복 제거 후 실매매 정보 표기
+    ret = [a.make_매매일보(n_봉수=봉수, b_카톡=True) for 봉수 in li_봉수] # 시간중복 제거 후 실매매 정보 표기
 
 if __name__ == '__main__':
     try:
