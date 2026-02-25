@@ -477,7 +477,7 @@ class AnalyzerBot:
                 os.system(f'xattr -d com.apple.quarantine {os.path.join(folder_타겟, file_저장)} 2>/dev/null')
 
             # 웹서버 복사
-            s_전략명 = 't8전략'
+            s_전략명 = 'cc전략'
             li_복사한파일명, li_삭제한파일명, dic_서버정보 = Tool.sftp파일업로드(folder_로컬=folder_타겟, folder_서버=s_전략명,
                                                             s_파일명=file_저장, n_파일보관일수=30)
 
@@ -492,7 +492,7 @@ class AnalyzerBot:
 
                 # 폴더 송부
                 self.kakao.send_메세지(s_사용자='알림봇', s_수신인='여봉이', s_메세지=f'[{s_일자}] 백테스팅 완료',
-                                    s_버튼이름=f'[{s_전략명}] 일보 폴더', s_연결url=f'{s_url주소}/')
+                                    s_버튼이름=f'[{s_전략명}] 매매일보 폴더', s_연결url=f'{s_url주소}/')
 
             # 로그 기록
             self.make_로그(f'{s_일자} 완료\n'
@@ -521,6 +521,7 @@ class AnalyzerBot:
         df_초봉['종가1'] = df_초봉['종가'].shift(1)
         df_초봉['종가ma20'] = df_초봉['종가'].rolling(20).mean()
         df_초봉['종가ma60'] = df_초봉['종가'].rolling(60).mean()
+        df_초봉['종가ma120'] = df_초봉['종가'].rolling(120).mean()
         df_초봉['거래량ma5'] = df_초봉['거래량'].rolling(5).mean()
         df_초봉['거래량ma20'] = df_초봉['거래량'].rolling(20).mean()
         df_초봉['거래대금'] = df_초봉['종가'] * df_초봉['거래량']
@@ -530,8 +531,10 @@ class AnalyzerBot:
         df_초봉['고가20'] = df_초봉['고가'].shift(1).rolling(20).max()
         df_초봉['고가40'] = df_초봉['고가'].shift(1).rolling(40).max()
         df_초봉['고가60'] = df_초봉['고가'].shift(1).rolling(60).max()
+        df_초봉['저가3'] = df_초봉['저가'].shift(1).rolling(3).min()
         sri_고가, sri_저가, sri_전일종가 = df_초봉['고가'], df_초봉['저가'], df_초봉['종가'].shift(1)
         li_atr산출 = [(sri_고가 - sri_저가), (sri_고가 - sri_전일종가).abs(), (sri_저가 - sri_전일종가).abs()]
+        df_초봉['ATR'] = pd.concat(li_atr산출, axis=1).max(axis=1)
         df_초봉['ATR14'] = pd.concat(li_atr산출, axis=1).max(axis=1).rolling(14).mean()
         df_초봉['ATR비율'] = df_초봉['ATR14'] / df_초봉['종가'] * 100
         df_초봉['ATR비율차이'] = df_초봉['ATR비율'] - df_초봉['ATR비율'].shift(1)
@@ -747,9 +750,9 @@ class AnalyzerBot:
             n_매도가 = df_매매내역.loc[idx, '매도가']
             n_리스크 = df_매매내역.loc[idx, '리스크']
             n_한계리스크 = n_자본금 * n_한계리스크율 / 100
-            n_매매수량 = int(n_한계리스크 / n_리스크)
+            n_매매수량 = min(int(n_한계리스크 / n_리스크), int(n_자본금 / n_매수가))
             n_매수금액 = n_매수가 * n_매매수량
-            n_매도금액 = n_매도가 * n_매매수량
+            n_매도금액 = n_매도가 * n_매매수량 - n_매수금액 * 0.2 / 100
             n_수익금액 = n_매도금액 - n_매수금액
             n_거래후자본금 = n_자본금 + n_수익금액
 
@@ -834,7 +837,7 @@ class AnalyzerBot:
         # ax_손익비.set_yticks([-1, 0, 1, 2, 3, 4, 5],
         #                   labels=['', '0', '1.0', '2.0', '3.0', '4.0', ''])
         li_틱 = [-1, 0, 1, 2, 3, 4, 5]
-        ax_손익비.set_yticks(li_틱, labels=[f'{틱:.1f}' if 틱 not in [li_틱[0], li_틱[-1]] else '' for 틱 in li_틱])
+        ax_손익비.set_yticks(li_틱, labels=[f'{틱:,.1f}' if 틱 not in [li_틱[0], li_틱[-1]] else '' for 틱 in li_틱])
 
         # 스케일 설정 - 기대수익
         ax_기대수익.set_ylim(-1.2, 1.2)
@@ -842,7 +845,7 @@ class AnalyzerBot:
         # ax_기대수익.set_yticks([-1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2],
         #                    labels=['', '-0.80', '-0.40', '0', '0.40', '0.80', ''])
         li_틱 = [-1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2]
-        ax_기대수익.set_yticks(li_틱, labels=[f'{틱:.2f}' if 틱 not in [li_틱[0], li_틱[-1]] else '' for 틱 in li_틱])
+        ax_기대수익.set_yticks(li_틱, labels=[f'{틱:,.2f}' if 틱 not in [li_틱[0], li_틱[-1]] else '' for 틱 in li_틱])
 
         # 뷰 설정 - 승률손익비
         ax_승률손익비.set_title('[ 승률/손익비 ]', loc='left', fontsize=10, fontweight='bold')
@@ -855,9 +858,9 @@ class AnalyzerBot:
         ax_승률손익비.set_xticks([li_일자[0], li_일자[-1]])
         n_누적승률 = ary_누적승률[-1]
         n_누적손익비 = ary_누적손익비[-1]
-        ax_승률손익비.text(li_일자[-1], 1.45, f'승률 {n_누적승률 * 100:.0f}%',
+        ax_승률손익비.text(li_일자[-1], 1.45, f'승률 {n_누적승률 * 100:,.0f}%',
                       fontsize=9, fontweight='bold', color=dic_색상['녹색'], va='top', ha='right')
-        ax_승률손익비.text(li_일자[-1], 1.33, f'손익비 {n_누적손익비:.1f}',
+        ax_승률손익비.text(li_일자[-1], 1.33, f'손익비 {n_누적손익비:,.1f}',
                       fontsize=9, fontweight='bold', color=dic_색상['보라'], va='top', ha='right')
 
         # 뷰 설정 - 기대수익
@@ -869,7 +872,7 @@ class AnalyzerBot:
         ax_기대수익.set_xticks([li_일자[0], li_일자[-1]])
         ax_기대수익.axhline(0, lw=0.5, alpha=1, color='black')
         n_기대수익 = ary_누적기대수익[-1]
-        ax_기대수익.text(li_일자[-1], 1.1, f'기대수익 {n_기대수익:.2f}',
+        ax_기대수익.text(li_일자[-1], 1.1, f'기대수익 {n_기대수익:,.2f}',
                      fontsize=9, fontweight='bold', color=dic_색상['주황'], va='top', ha='right')
 
         return n_누적승률, n_누적손익비, n_기대수익
@@ -908,9 +911,9 @@ class AnalyzerBot:
         ary_누적수익률 = df_누적['누적수익률'].values
 
         # 그래프 설정
-        ax_누적수익률.bar(li_일자, ary_일별수익률, label='일별', lw=1, alpha=0.5, color=dic_색상['회색'])
-        ax_누적수익률.plot(li_일자, ary_누적수익률, label='누적', lw=1, alpha=1, color=dic_색상['고동'])
-        ax_누적수익률.axhline(50, lw=2, alpha=0.5, linestyle='--', color=dic_색상['고동'])
+        ax_누적수익률.bar(li_일자, ary_일별수익률, label='일별', lw=2, alpha=0.5, color=dic_색상['회색'])
+        ax_누적수익률.plot(li_일자, ary_누적수익률, label='누적', lw=2, alpha=1, color=dic_색상['분홍'])
+        ax_누적수익률.axhline(50, lw=2, alpha=0.5, linestyle='--', color=dic_색상['분홍'])
 
         # 스케일 설정
         ax_누적수익률.set_ylim(-75, 75)
@@ -929,7 +932,7 @@ class AnalyzerBot:
         ax_누적수익률.axhline(0, lw=0.5, alpha=1, color='black')
         ax_누적수익률.set_xticks([li_일자[0], li_일자[-1]])
         n_누적수익률 = ary_누적수익률[-1]
-        ax_누적수익률.text(li_일자[-1], 70, f'누적수익률 {n_누적수익률:.0f}%',
+        ax_누적수익률.text(li_일자[-1], 70, f'누적수익률 {n_누적수익률:,.0f}%',
                       fontsize=9, fontweight='bold', color=dic_색상['고동'], va='top', ha='right')
 
         return n_누적수익률
@@ -948,7 +951,7 @@ class AnalyzerBot:
         li_일시 = Chart.make_캔들차트(ax=ax_거래일봉, df_차트=df_일봉, s_봉구분='일봉', s_차트구분='캔들')
 
         # 뷰 설정
-        ax_거래일봉.set_title(f'[일봉] {s_종목명}({s_종목코드}) | {s_매도사유}({n_수익률:.1f}%)',
+        ax_거래일봉.set_title(f'[일봉] {s_종목명}({s_종목코드}) | {s_매도사유}({n_수익률:,.1f}%)',
                           loc='left', fontsize=10, fontweight='bold')
         ax_거래일봉.tick_params(length=0, labelsize=8)
         ax_거래일봉.set_xticks([li_일시[0], li_일시[-1]])
@@ -984,7 +987,8 @@ class AnalyzerBot:
         ax_거래분봉.set_title(f'[3분봉] {s_종목명} | {s_매도사유}({n_수익률:.1f}%) | 리스크 {n_리스크:,.0f}원',
                           loc='left', fontsize=10, fontweight='bold')
         ax_거래분봉.tick_params(length=0, labelsize=8)
-        ax_거래분봉.set_xticks([s_매수시점, s_매도시점])
+        # ax_거래분봉.set_xticks([s_매수시점, s_매도시점])
+        ax_거래분봉.set_xticks([s_매수시점])
 
         # 거래정보 설정
         ax_거래분봉.axvline(s_매수시점, lw=5, alpha=0.1, color=dic_색상['분홍'])
