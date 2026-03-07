@@ -246,7 +246,7 @@ def sftp파일업로드(folder_로컬, folder_서버, s_파일명, n_파일보�
     # 서버 접속
     li_복사한파일명 = list()
     li_삭제한파일명 = list()
-    with (paramiko.SSHClient() as ssh):
+    with paramiko.SSHClient() as ssh:
         # ssh 서버 연결 (알수없는 서버 경고 방지 포함)
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(hostname=dic_서버접속['hostname'], port=dic_서버접속['port'],
@@ -268,7 +268,8 @@ def sftp파일업로드(folder_로컬, folder_서버, s_파일명, n_파일보�
             # 오래된 파일 삭제
             s_파일일자 = re.findall(r'\d{8}', s_파일명)[0]
             s_기준일자 = (pd.Timestamp(s_파일일자) - pd.Timedelta(days=n_파일보관일수)).strftime('%Y%m%d')
-            li_삭제파일 = sorted(파일 for 파일 in sftp.listdir(s_서버폴더) if re.findall(r'\d{8}', 파일)[0] < s_기준일자)
+            li_삭제파일 = sorted(파일 for 파일 in sftp.listdir(s_서버폴더)
+                             if 파일[0] != '.' and re.findall(r'\d{8}', 파일)[0] < s_기준일자)
             for s_삭제파일 in li_삭제파일:
                 sftp.remove(f'{s_서버폴더}/{s_삭제파일}')
                 li_삭제한파일명.append(s_삭제파일)
