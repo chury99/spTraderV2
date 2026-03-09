@@ -425,14 +425,14 @@ class AnalyzerBot:
         folder_소스 = os.path.join(self.folder_백테스팅, '50_수익내역')
         file_소스 = f'df_수익내역'
         folder_타겟 = os.path.join(self.folder_백테스팅, '60_매매일보')
-        file_타겟 = f'매매일보'
+        file_타겟 = f'df_매매일보'
         os.makedirs(folder_타겟, exist_ok=True)
 
         # 대상일자 확인
         li_전체일자 = sorted(re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_소스)
                          if file_소스 in 파일 and s_봉수 in 파일 and '.pkl' in 파일)
         li_완료일자 = [re.findall(r'\d{8}', 파일)[0] for 파일 in os.listdir(folder_타겟)
-                   if file_타겟 in 파일 and s_봉수 in 파일 and '.svg' in 파일]
+                   if file_타겟 in 파일 and s_봉수 in 파일 and '.pkl' in 파일]
         li_대상일자 = [일자 for 일자 in li_전체일자 if 일자 not in li_완료일자]
 
         # 일자별 매수매도 정보 생성
@@ -450,9 +450,50 @@ class AnalyzerBot:
             # 차트캐시 불러오기
             dic_일봉 = pd.read_pickle(os.path.join(self.folder_차트캐시, '일봉1', f'dic_차트캐시_1일봉_{s_일자}.pkl'))
             dic_분봉 = pd.read_pickle(os.path.join(self.folder_차트캐시, '분봉3', f'dic_차트캐시_3분봉_{s_일자}.pkl'))
-            dic_초봉 = pd.read_pickle(os.path.join(self.folder_차트캐시, '초봉5', f'dic_차트캐시_5초봉_{s_일자}.pkl'))
+            # dic_초봉 = pd.read_pickle(os.path.join(self.folder_차트캐시, '초봉5', f'dic_차트캐시_5초봉_{s_일자}.pkl'))
+            dic_초봉 = pd.read_pickle(os.path.join(self.folder_차트캐시, '초봉1', f'dic_차트캐시_1초봉_{s_일자}.pkl'))
+
+            # 데이터 생성 - 일별
+            df_일별 = dic_수익내역['누적리포트'][1:].sort_values('일자').reset_index(drop=True)
+            df_일별 = df_일별.loc[:, ['일자', '거래수', '수익률sum', '이익거래수', '평균이익률', '손실거래수', '평균손실률',
+                                  '승률', '손익비', '기대수익', '시작금액', '종료금액', '수익금액']]
+            df_일별['수익률'] = (df_일별['종료금액'] / df_일별['시작금액'] - 1) * 100
+
+            # 데이터 생성 - 누적
+            df_거래별 = dic_수익내역['수익금액'].sort_values(['일자', '시간'])
+            li_dic누적 = []
+            for s_누적일자 in df_거래별['일자'].unique():
+                df_누적거래 = df_거래별.loc[df_거래별['일자'] <= s_누적일자]
+                df_누적거래_이익 = df_누적거래.loc[df_누적거래['수익률'] > 0]
+                df_누적거래_손실 = df_누적거래.loc[df_누적거래['수익률'] < 0]
+                n_총거래수 = len(df_누적거래)
+                n_이익거래수 = len(df_누적거래_이익)
+                n_손실거래수 = len(df_누적거래_손실)
+                n_평균이익률 = df_누적거래_이익['수익률'].mean() if n_이익거래수 > 0 else 0
+                n_평균손실률 = df_누적거래_손실['수익률'].mean() if len(df_누적거래_손실) > 0 else 0
+                n_승률 = n_이익거래수 / n_총거래수 if n_총거래수 > 0 else 0
+                n_손익비 = n_평균이익률 / abs(n_평균손실률) if n_평균손실률 != 0 else 10
+                n_기대수익 = (n_승률 * n_손익비) - (1 - n_승률)
+                n_시작금액 = df_누적거래['시작금액'].iloc[0]
+                n_종료금액 = df_누적거래['종료금액'].iloc[-1]
+                n_수익금액 = n_종료금액 - n_시작금액
+                n_누적수익률 = (n_종료금액 / n_시작금액 - 1) * 100 if n_시작금액 != 0 else 0
+                li_dic누적.append(dict(일자=s_누적일자, 누적거래수=n_총거래수, 누적수익률sum=df_누적거래['수익률'].sum(),
+                                     누적이익거래수=n_이익거래수, 누적평균이익률=n_평균이익률, 누적손실거래수=n_손실거래수, 누적평균손실률=n_평균손실률,
+                                     누적승률=n_승률, 누적손익비=n_손익비, 누적기대수익=n_기대수익,
+                                     누적시작금액=n_시작금액, 누적종료금액=n_종료금액, 누적수익금액=n_수익금액,누적수익률=n_누적수익률))
+            df_누적 = pd.DataFrame(li_dic누적).sort_values('일자').reset_index(drop=True)
 
             # 매매일보 생성
+            df_누적_일자제외 = df_누적.loc[:, [컬럼 for 컬럼 in df_누적.columns if 컬럼 != '일자']]
+            df_매매일보 = pd.concat([df_일별, df_누적_일자제외], axis=1, ignore_index=False)
+            df_매매일보 = df_매매일보.loc[:, ['일자', '거래수', '누적거래수', '수익률sum', '누적수익률sum',
+                                      '이익거래수', '누적이익거래수', '평균이익률', '누적평균이익률',
+                                      '손실거래수', '누적손실거래수', '평균손실률', '누적평균손실률',
+                                      '승률', '누적승률', '손익비', '누적손익비', '기대수익', '누적기대수익',
+                                      '시작금액', '종료금액', '수익금액', '누적수익금액', '수익률', '누적수익률']]
+
+            # 그래프 생성
             df_일거래 = dic_수익내역['기본'].reset_index(drop=True)
             n_차트_가로 = 3
             n_차트_세로 = 1 + len(df_일거래)
@@ -462,9 +503,11 @@ class AnalyzerBot:
             ax_승률손익비 = fig.add_subplot(n_차트_세로, n_차트_가로, 1)
             ax_기대수익 = fig.add_subplot(n_차트_세로, n_차트_가로, 2)
             ax_수익금액 = fig.add_subplot(n_차트_세로, n_차트_가로, 3)
-            n_누적승률, n_누적손익비, n_기대수익 = self._ax_기대수익(ax_승률손익비=ax_승률손익비, ax_기대수익=ax_기대수익,
-                                                            dic_데이터=dic_수익내역, n_이동평균=5)
-            n_누적수익률 = self._ax_누적수익률(ax_누적수익률=ax_수익금액, dic_데이터=dic_수익내역)
+            # n_누적승률, n_누적손익비, n_기대수익 = self._ax_기대수익(ax_승률손익비=ax_승률손익비, ax_기대수익=ax_기대수익,
+            #                                                 dic_데이터=dic_수익내역, n_이동평균=5)
+            # n_누적수익률 = self._ax_누적수익률(ax_누적수익률=ax_수익금액, dic_데이터=dic_수익내역)
+            ret = self._ax_기대수익(ax_승률손익비=ax_승률손익비, ax_기대수익=ax_기대수익, df_매매일보=df_매매일보, n_이동평균=5)
+            ret = self._ax_누적수익률(ax_누적수익률=ax_수익금액, df_매매일보=df_매매일보)
 
             # 거래차트 구성
             for i in range(len(df_일거래)):
@@ -486,17 +529,20 @@ class AnalyzerBot:
                 ret = self._ax_거래초봉(ax_거래초봉=ax_거래초봉, df_초봉=df_초봉, dic_거래=dic_거래)
 
             # 매매일보 저장
-            # fig.savefig(os.path.join(folder_타겟, f'{file_타겟}_{s_일자}_{n_봉수}초봉.png'))
-            # fig.savefig(os.path.join(folder_타겟, f'{file_타겟}_{s_일자}_{n_봉수}초봉.svg'))
-            file_저장 = f'{file_타겟}_{s_일자}_{s_봉수}.svg'
-            fig.savefig(os.path.join(folder_타겟, file_저장))
-            if sys.platform == 'darwin':
-                os.system(f'xattr -d com.apple.quarantine {os.path.join(folder_타겟, file_저장)} 2>/dev/null')
+            Tool.df저장(df=df_매매일보, path=os.path.join(folder_타겟, f'{file_타겟}_{s_일자}_{s_봉수}'))
 
-            # 웹서버 복사
+            # 그래프 저장
+            folder_그래프 = f'{folder_타겟}_그래프'
+            file_그래프 = f'{file_타겟}_{s_일자}_{s_봉수}.svg'
+            os.makedirs(folder_그래프, exist_ok=True)
+            fig.savefig(os.path.join(folder_그래프, file_그래프))
+            if sys.platform == 'darwin':
+                os.system(f'xattr -d com.apple.quarantine {os.path.join(folder_그래프, file_그래프)} 2>/dev/null')
+
+            # 그래프 웹서버 복사
             s_전략명 = 'cc전략'
-            li_복사한파일명, li_삭제한파일명, dic_서버정보 = Tool.sftp파일업로드(folder_로컬=folder_타겟, folder_서버=s_전략명,
-                                                            s_파일명=file_저장, n_파일보관일수=30)
+            li_복사한파일명, li_삭제한파일명, dic_서버정보 = Tool.sftp파일업로드(folder_로컬=folder_그래프, folder_서버=s_전략명,
+                                                            s_파일명=file_그래프, n_파일보관일수=30)
 
             # 메세지 송부
             if b_카톡 and s_일자 == li_대상일자[-1]:
@@ -505,16 +551,21 @@ class AnalyzerBot:
 
                 # 일보 송부
                 self.kakao.send_메세지(s_사용자='알림봇', s_수신인='여봉이', s_메세지=f'[{s_일자}] 백테스팅 완료',
-                                    s_버튼이름=f'[{s_전략명}] {file_저장}', s_연결url=f'{s_url주소}/{file_저장}')
+                                    s_버튼이름=f'[{s_전략명}] {file_그래프}', s_연결url=f'{s_url주소}/{file_그래프}')
 
                 # 폴더 송부
                 self.kakao.send_메세지(s_사용자='알림봇', s_수신인='여봉이', s_메세지=f'[{s_일자}] 백테스팅 완료',
                                     s_버튼이름=f'[{s_전략명}] 매매일보 폴더', s_연결url=f'{s_url주소}/')
 
             # 로그 기록
+            n_일거래수 = df_매매일보['거래수'].values[-1]
+            n_누적승률 = df_매매일보['누적승률'].values[-1]
+            n_누적손익비 = df_매매일보['누적손익비'].values[-1]
+            n_누적기대수익 = df_매매일보['누적기대수익'].values[-1]
+            n_누적수익률 = df_매매일보['누적수익률'].values[-1]
             self.make_로그(f'{s_일자} 완료\n'
-                          f' - 일거래 {len(df_일거래)}건, 누적승률 {n_누적승률 * 100:,.0f}%, 누적손익비 {n_누적손익비:,.1f}\n'
-                          f' - 기대수익 {n_기대수익:,.2f}, 누적수익률 {n_누적수익률:,.0f}%')
+                          f' - 일거래 {n_일거래수}건, 누적승률 {n_누적승률 * 100:,.0f}%, 누적손익비 {n_누적손익비:,.1f}\n'
+                          f' - 기대수익 {n_누적기대수익:,.2f}, 누적수익률 {n_누적수익률:,.0f}%')
 
     @staticmethod
     def _make_매매신호_종목(dic_매개변수):
@@ -538,20 +589,24 @@ class AnalyzerBot:
         # 데이터 생성
         s_봉구분 = s_봉수[-2:]
         n_봉수 = int(s_봉수.replace(s_봉구분, ''))
-        dic_변환기준 = dict(시가='first', 고가='max', 저가='min', 종가='last', 거래량='sum')
-        df_데이터 = df_1초봉.resample(f'{n_봉수}S').agg(dic_변환기준) if s_봉구분 == '초봉' else\
-                    df_1초봉.resample(f'{n_봉수}min').agg(dic_변환기준) if s_봉구분 == '분봉' else pd.DataFrame()
-        df_데이터['일자'] = df_데이터.index.strftime('%Y%m%d')
-        df_데이터['시간'] = df_데이터.index.strftime('%H:%M:%S')
-        df_데이터['종목코드'] = s_종목코드
-        df_데이터['종목명'] = s_종목명
+        df_데이터 = df_분봉
+        if s_봉구분 == '초봉':
+            dic_변환기준 = dict(시가='first', 고가='max', 저가='min', 종가='last', 거래량='sum')
+            df_데이터 = df_1초봉.resample(f'{n_봉수}S').agg(dic_변환기준) if s_봉구분 == '초봉' else\
+                        df_1초봉.resample(f'{n_봉수}min').agg(dic_변환기준) if s_봉구분 == '분봉' else pd.DataFrame()
+            df_데이터['일자'] = df_데이터.index.strftime('%Y%m%d')
+            df_데이터['시간'] = df_데이터.index.strftime('%H:%M:%S')
+            df_데이터['종목코드'] = s_종목코드
+            df_데이터['종목명'] = s_종목명
+        elif s_봉구분 == '분봉':
+            df_데이터 = df_분봉
         li_컬럼명 = ['일자', '종목코드', '종목명', '시간', '시가', '고가', '저가', '종가', '거래량']
         df_데이터 = df_데이터.loc[:, li_컬럼명]
 
-        # 이전 데이터 추가 - 분봉만 - tr조회
-        if s_봉구분 == '분봉':
-            df_이전데이터 = df_분봉.loc[df_분봉.index <= df_데이터.index.min(), li_컬럼명][:-1]
-            df_데이터 = pd.concat([df_이전데이터, df_데이터], axis=0).sort_index()
+        # # 이전 데이터 추가 - 분봉만 - tr조회
+        # if s_봉구분 == '분봉':
+        #     df_이전데이터 = df_분봉.loc[df_분봉.index <= df_데이터.index.min(), li_컬럼명][:-1]
+        #     df_데이터 = pd.concat([df_이전데이터, df_데이터], axis=0).sort_index()
 
         # 추가정보 생성
         df_데이터['종가1'] = df_데이터['종가'].shift(1)
@@ -582,6 +637,7 @@ class AnalyzerBot:
         # for dt_시점 in df_데이터.index:
         for dt_시점 in df_1초봉.index:
             # 기준정보 확인
+            if df_1초봉.loc[dt_시점, '거래량'] == 0: continue
             s_시점 = dt_시점.strftime('%H:%M:%S')
             n_현재가 = df_1초봉.loc[dt_시점, '종가'] if dt_시점 in df_1초봉.index else df_데이터.loc[dt_시점, '시가']
             b_매수탐색 = (dt_시점.second % n_봉수 == 0) if s_봉구분 == '초봉' else\
@@ -652,7 +708,10 @@ class AnalyzerBot:
                                매도사유=dic_args_종목['매도봇_s_매도사유'] if b_매도신호 else None,
                                수익률=dic_args_종목['매도봇_n_수익률'] if b_보유신호 else None,
                                보유초=dic_args_종목['매도봇_n_경과시간'] if b_보유신호 else None,
-                               리스크=dic_args_종목['매도봇_n_리스크'] if b_보유신호 else None)
+                               타임아웃=dic_args_종목['매도봇_n_타임아웃'] if b_보유신호 else None,
+                               리스크=dic_args_종목['매도봇_n_리스크'] if b_보유신호 else None,
+                               추세한계=dic_args_종목['매도봇_n_추세한계'] if b_보유신호 else None,
+                               손실기준=dic_args_종목['매도봇_n_손실기준'] if b_보유신호 else None)
             dic_매매신호_추가 = {key: [value] for key, value in dic_매매신호_추가.items()}
             dic_매매신호 = {key: dic_매매신호.get(key, list()) + dic_매매신호_추가.get(key, list())
                             for key in dic_매매신호_추가.keys()}
@@ -817,41 +876,49 @@ class AnalyzerBot:
         return df_수익금액
 
     @staticmethod
-    def _ax_기대수익(ax_승률손익비, ax_기대수익, dic_데이터, n_이동평균):
+    def _ax_기대수익(ax_승률손익비, ax_기대수익, df_매매일보, n_이동평균):
         """ 입력된 데이터 기준으로 승률손익비 및 기대수익 그래프 생성 후 리턴 """
         # 기준정보 정의
         dic_색상 = dict(파랑='C0', 주황='C1', 녹색='C2', 빨강='C3', 보라='C4', 고동='C5', 분홍='C6', 회색='C7', 풀색='C8', 하늘='C9')
 
-        # 일별 데이터 정의
-        df_일별 = dic_데이터['누적리포트'][1:].sort_values('일자')
-        li_일자 = df_일별['일자'].values
-        ary_일별승률 = df_일별['승률'].values
-        ary_일별손익비 = df_일별['손익비'].values
+        # # 일별 데이터 정의
+        # df_일별 = df_매매일보['누적리포트'][1:].sort_values('일자')
+        # li_일자 = df_일별['일자'].values
+        # ary_일별승률 = df_일별['승률'].values
+        # ary_일별손익비 = df_일별['손익비'].values
+        #
+        # # 누적 데이터 정의
+        # df_거래별 = df_매매일보['수익금액'].sort_values('일자')
+        # li_dic누적 = list()
+        # for s_누적일자  in df_거래별['일자'].unique():
+        #     df_누적_일자 = df_거래별.loc[df_거래별['일자'] <= s_누적일자]
+        #     df_누적_일자_이익 = df_누적_일자.loc[df_누적_일자['수익률'] > 0]
+        #     df_누적_일자_손실 = df_누적_일자.loc[df_누적_일자['수익률'] < 0]
+        #     n_총거래수 = len(df_누적_일자)
+        #     n_이익거래수 = len(df_누적_일자_이익)
+        #     n_손실거래수 = len(df_누적_일자_손실)
+        #     n_평균이익률 = df_누적_일자_이익['수익률'].mean() if n_이익거래수 > 0 else 0
+        #     n_평균손실률 = df_누적_일자_손실['수익률'].mean() if n_손실거래수 > 0 else 0
+        #     dic_누적 = dict(일자=s_누적일자, 승률=n_이익거래수 / n_총거래수, 손익비=n_평균이익률 / abs(n_평균손실률))
+        #     dic_누적.update(기대수익=(dic_누적['승률'] * dic_누적['손익비']) - (1 - dic_누적['승률']))
+        #     li_dic누적.append(dic_누적)
+        # df_누적 = pd.DataFrame(li_dic누적).sort_values('일자')
+        #
+        # # 그래프용 데이터 정의
+        # li_일자 = [f'{일자[4:6]}-{일자[6:8]}' for 일자  in df_누적['일자']]
+        # ary_누적승률 = df_누적['승률'].values
+        # ary_누적손익비 = df_누적['손익비'].values
+        # ary_누적기대수익 = df_누적['기대수익'].values
+        # ary_일별기대수익 = (ary_일별승률 * ary_일별손익비) - (1 - ary_일별승률)
+        # ary_일별기대수익ma = pd.Series(ary_일별기대수익).rolling(window=n_이동평균).mean().values
 
-        # 누적 데이터 정의
-        df_거래별 = dic_데이터['수익금액'].sort_values('일자')
-        li_dic누적 = list()
-        for s_누적일자  in df_거래별['일자'].unique():
-            df_누적_일자 = df_거래별.loc[df_거래별['일자'] <= s_누적일자]
-            df_누적_일자_이익 = df_누적_일자.loc[df_누적_일자['수익률'] > 0]
-            df_누적_일자_손실 = df_누적_일자.loc[df_누적_일자['수익률'] < 0]
-            n_총거래수 = len(df_누적_일자)
-            n_이익거래수 = len(df_누적_일자_이익)
-            n_손실거래수 = len(df_누적_일자_손실)
-            n_평균이익률 = df_누적_일자_이익['수익률'].mean() if n_이익거래수 > 0 else 0
-            n_평균손실률 = df_누적_일자_손실['수익률'].mean() if n_손실거래수 > 0 else 0
-            dic_누적 = dict(일자=s_누적일자, 승률=n_이익거래수 / n_총거래수, 손익비=n_평균이익률 / abs(n_평균손실률))
-            dic_누적.update(기대수익=(dic_누적['승률'] * dic_누적['손익비']) - (1 - dic_누적['승률']))
-            li_dic누적.append(dic_누적)
-        df_누적 = pd.DataFrame(li_dic누적).sort_values('일자')
-
-        # 그래프용 데이터 정의
-        li_일자 = [f'{일자[4:6]}-{일자[6:8]}' for 일자  in df_누적['일자']]
-        ary_누적승률 = df_누적['승률'].values
-        ary_누적손익비 = df_누적['손익비'].values
-        ary_누적기대수익 = df_누적['기대수익'].values
-        ary_일별기대수익 = (ary_일별승률 * ary_일별손익비) - (1 - ary_일별승률)
-        ary_일별기대수익ma = pd.Series(ary_일별기대수익).rolling(window=n_이동평균).mean().values
+        # 데이터 정의
+        li_일자 = [f'{일자[4:6]}-{일자[6:8]}' for 일자  in df_매매일보['일자']]
+        ary_일별기대수익 = df_매매일보['기대수익'].values
+        ary_일별기대수익ma = df_매매일보['기대수익'].rolling(n_이동평균).mean().values
+        ary_누적승률 = df_매매일보['누적승률'].values
+        ary_누적손익비 = df_매매일보['누적손익비'].values
+        ary_누적기대수익 = df_매매일보['누적기대수익'].values
 
         # 그래프 설정 - 승률
         ax_승률 = ax_승률손익비
@@ -921,40 +988,45 @@ class AnalyzerBot:
         ax_기대수익.text(li_일자[-1], 1.1, f'기대수익 {n_기대수익:,.2f}',
                      fontsize=9, fontweight='bold', color=dic_색상['주황'], va='top', ha='right')
 
-        return n_누적승률, n_누적손익비, n_기대수익
+        return (ax_승률손익비, ax_기대수익)
 
     @staticmethod
-    def _ax_누적수익률(ax_누적수익률, dic_데이터):
+    def _ax_누적수익률(ax_누적수익률, df_매매일보):
         """ 입력된 데이터 기준으로 누적수익률 그래프 생성 후 리턴 """
         # 기준정보 정의
         dic_색상 = dict(파랑='C0', 주황='C1', 녹색='C2', 빨강='C3', 보라='C4', 고동='C5', 분홍='C6', 회색='C7', 풀색='C8', 하늘='C9')
 
-        # 일별 데이터 정의
-        df_일별 = dic_데이터['수익금액'].sort_values('일자')
-        gr_일별 = df_일별.groupby('일자')
-        n_시작금액 = df_일별['시작금액'].values[0]
+        # # 일별 데이터 정의
+        # df_일별 = df_매매일보['수익금액'].sort_values('일자')
+        # gr_일별 = df_일별.groupby('일자')
+        # n_시작금액 = df_일별['시작금액'].values[0]
+        #
+        # # 누적 데이터 정의
+        # li_dic누적 = list()
+        # for s_누적일자, df_일자 in gr_일별:
+        #     df_일자 = df_일자.sort_values('매수시간')
+        #     n_수익금액 = df_일자['수익금액'].sum()
+        #     n_일시작금액 = df_일자['시작금액'].values[0]
+        #     n_일종료금액 = df_일자['종료금액'].values[-1]
+        #     n_일별수익률 = (n_일종료금액 / n_일시작금액 - 1) * 100
+        #     n_누적수익률 = (n_일종료금액 / n_시작금액 - 1) * 100
+        #     dic_누적 = dict(일자=s_누적일자, 시작금액=n_일시작금액, 수익금액=n_수익금액, 종료금액=n_일종료금액,
+        #                   일별수익률=n_일별수익률, 누적수익률=n_누적수익률)
+        #     li_dic누적.append(dic_누적)
+        # df_누적 = pd.DataFrame(li_dic누적).sort_values('일자')
+        #
+        # # 그래프용 데이터 정의
+        # li_일자 = [f'{일자[4:6]}-{일자[6:8]}' for 일자  in df_누적['일자']]
+        # ary_시작금액 = df_누적['시작금액'].values
+        # ary_수익금액 = df_누적['수익금액'].values
+        # ary_종료금액 = df_누적['종료금액'].values
+        # ary_일별수익률 = df_누적['일별수익률'].values
+        # ary_누적수익률 = df_누적['누적수익률'].values
 
-        # 누적 데이터 정의
-        li_dic누적 = list()
-        for s_누적일자, df_일자 in gr_일별:
-            df_일자 = df_일자.sort_values('매수시간')
-            n_수익금액 = df_일자['수익금액'].sum()
-            n_일시작금액 = df_일자['시작금액'].values[0]
-            n_일종료금액 = df_일자['종료금액'].values[-1]
-            n_일별수익률 = (n_일종료금액 / n_일시작금액 - 1) * 100
-            n_누적수익률 = (n_일종료금액 / n_시작금액 - 1) * 100
-            dic_누적 = dict(일자=s_누적일자, 시작금액=n_일시작금액, 수익금액=n_수익금액, 종료금액=n_일종료금액,
-                          일별수익률=n_일별수익률, 누적수익률=n_누적수익률)
-            li_dic누적.append(dic_누적)
-        df_누적 = pd.DataFrame(li_dic누적).sort_values('일자')
-
-        # 그래프용 데이터 정의
-        li_일자 = [f'{일자[4:6]}-{일자[6:8]}' for 일자  in df_누적['일자']]
-        ary_시작금액 = df_누적['시작금액'].values
-        ary_수익금액 = df_누적['수익금액'].values
-        ary_종료금액 = df_누적['종료금액'].values
-        ary_일별수익률 = df_누적['일별수익률'].values
-        ary_누적수익률 = df_누적['누적수익률'].values
+        # 데이터 정의
+        li_일자 = [f'{일자[4:6]}-{일자[6:8]}' for 일자  in df_매매일보['일자']]
+        ary_일별수익률 = df_매매일보['수익률'].values
+        ary_누적수익률 = df_매매일보['누적수익률'].values
 
         # 그래프 설정
         ax_누적수익률.bar(li_일자, ary_일별수익률, label='일별', lw=2, alpha=0.5, color=dic_색상['회색'])
@@ -981,7 +1053,7 @@ class AnalyzerBot:
         ax_누적수익률.text(li_일자[-1], 70, f'누적수익률 {n_누적수익률:,.0f}%',
                       fontsize=9, fontweight='bold', color=dic_색상['고동'], va='top', ha='right')
 
-        return n_누적수익률
+        return ax_누적수익률
 
     @staticmethod
     def _ax_거래일봉(ax_거래일봉, df_일봉, dic_거래):
@@ -1017,21 +1089,28 @@ class AnalyzerBot:
         s_종목명, s_종목코드 = dic_거래['종목명'], dic_거래['종목코드']
         n_매수가, n_매도가 = dic_거래['매수가'], dic_거래['매도가']
         s_매도사유, n_수익률, n_리스크 = dic_거래['매도사유'], dic_거래['수익률'], dic_거래['리스크']
+        n_타임아웃 = dic_거래['타임아웃']
         n_ATR비율_매수 = n_리스크 / 2 / n_매수가 * 100
-        s_매수시점 = pd.Timestamp(dic_거래['매수시간']).floor('3min').strftime('%H:%M')
-        s_매도시점 = pd.Timestamp(dic_거래['매도시간']).floor('3min').strftime('%H:%M')
-        s_타임아웃시점 = (pd.Timestamp(s_매수시점) + pd.Timedelta(seconds=3 * 60 * 10)).floor('3min').strftime('%H:%M')
+        s_봉수 = dic_거래['봉수']
+        n_분봉수 = int(s_봉수.replace('분봉', '')) if '분봉' in s_봉수 else 1
+        # s_매수시점 = pd.Timestamp(dic_거래['매수시간']).floor('3min').strftime('%H:%M')
+        # s_매도시점 = pd.Timestamp(dic_거래['매도시간']).floor('3min').strftime('%H:%M')
+        s_매수시점 = pd.Timestamp(dic_거래['매수시간']).floor(f'{n_분봉수}min').strftime('%H:%M')
+        s_매도시점 = pd.Timestamp(dic_거래['매도시간']).floor(f'{n_분봉수}min').strftime('%H:%M')
+        # s_타임아웃시점 = (pd.Timestamp(s_매수시점) + pd.Timedelta(seconds=3 * 60 * 10)).floor('3min').strftime('%H:%M')
+        s_타임아웃시점 = (pd.Timestamp(s_매수시점) + pd.Timedelta(seconds=n_타임아웃)).floor(f'{n_분봉수}min').strftime('%H:%M')
 
         # 분봉 잘라내기
-        s_시작시점 = (pd.Timestamp(s_매수시점) - pd.Timedelta(minutes=3 * 10)).strftime('%H:%M:%S')
-        s_종료시점 = (pd.Timestamp(s_타임아웃시점) + pd.Timedelta(minutes=3 * 10)).strftime('%H:%M:%S')
+        s_시작시점 = (pd.Timestamp(s_매수시점) - pd.Timedelta(minutes=n_분봉수 * 20)).strftime('%H:%M:%S')
+        s_종료시점 = (pd.Timestamp(s_타임아웃시점) + pd.Timedelta(minutes=n_분봉수 * 10)).strftime('%H:%M:%S')
         df_분봉 = df_분봉.loc[df_분봉['시간'].between(s_시작시점, s_종료시점)]
 
         # 차트 생성
-        li_일시 = Chart.make_캔들차트(ax=ax_거래분봉, df_차트=df_분봉, s_봉구분='3분봉', s_차트구분='캔들', b_legend=False)
+        li_일시 = Chart.make_캔들차트(ax=ax_거래분봉, df_차트=df_분봉, s_봉구분=f'{n_분봉수}분봉', s_차트구분='캔들', b_legend=False)
 
         # 뷰 설정
-        ax_거래분봉.set_title(f'[3분봉] {s_종목명} | {s_매도사유}({n_수익률:.1f}%) | ATR {n_ATR비율_매수:.1f}% | 리스크 {n_리스크:,.0f}원',
+        ax_거래분봉.set_title(f'[{n_분봉수}분봉] {s_종목명} | {s_매도사유}({n_수익률:.1f}%)'
+                          f' | ATR {n_ATR비율_매수:.1f}% | 리스크 {n_리스크:,.0f}원',
                           loc='left', fontsize=10, fontweight='bold')
         ax_거래분봉.tick_params(length=0, labelsize=8)
         # ax_거래분봉.set_xticks([s_매수시점, s_매도시점])
@@ -1057,9 +1136,15 @@ class AnalyzerBot:
         s_종목명, s_종목코드 = dic_거래['종목명'], dic_거래['종목코드']
         n_매수가, n_매도가 = dic_거래['매수가'], dic_거래['매도가']
         s_매도사유, n_수익률, n_리스크 = dic_거래['매도사유'], dic_거래['수익률'], dic_거래['리스크']
-        s_매수시점 = pd.Timestamp(dic_거래['매수시간']).floor('5s').strftime('%H:%M:%S')
-        s_매도시점 = pd.Timestamp(dic_거래['매도시간']).floor('5s').strftime('%H:%M:%S')
-        s_타임아웃시점 = (pd.Timestamp(s_매수시점) + pd.Timedelta(seconds=600)).floor('5s').strftime('%H:%M:%S')
+        s_봉수 = dic_거래['봉수']
+        n_타임아웃 = dic_거래['타임아웃']
+        n_초봉수 = int(s_봉수.replace('초봉', '')) if '초봉' in s_봉수 else 1
+        s_매수시점 = pd.Timestamp(dic_거래['매수시간']).floor(f'{n_초봉수}s').strftime('%H:%M:%S')
+        s_매도시점 = pd.Timestamp(dic_거래['매도시간']).floor(f'{n_초봉수}s').strftime('%H:%M:%S')
+        s_타임아웃시점 = (pd.Timestamp(s_매수시점) + pd.Timedelta(seconds=n_타임아웃)).floor(f'{n_초봉수}s').strftime('%H:%M:%S')
+        # s_매수시점 = dic_거래['매수시간']
+        # s_매도시점 = dic_거래['매도시간']
+        # s_타임아웃시점 = (pd.Timestamp(s_매수시점) + pd.Timedelta(seconds=600)).strftime('%H:%M:%S')
 
         # 이동평균 생성
         df_초봉['종가ma5'] = df_초봉['종가'].rolling(5).mean()
@@ -1073,16 +1158,17 @@ class AnalyzerBot:
         df_초봉['거래량ma120'] = df_초봉['거래량'].rolling(120).mean()
 
         # 분봉 잘라내기
-        s_시작시점 = (pd.Timestamp(s_매수시점) - pd.Timedelta(seconds=5 * 20)).strftime('%H:%M:%S')
-        s_종료시점 = (pd.Timestamp(s_타임아웃시점) + pd.Timedelta(seconds=5 * 10)).strftime('%H:%M:%S')
+        s_시작시점 = (pd.Timestamp(s_매수시점) - pd.Timedelta(seconds=n_초봉수 * 20)).strftime('%H:%M:%S')
+        s_종료시점 = (pd.Timestamp(s_타임아웃시점) + pd.Timedelta(seconds=n_초봉수 * 20)).strftime('%H:%M:%S') if '초봉' in s_봉수\
+                    else (pd.Timestamp(s_매도시점) + pd.Timedelta(seconds=n_초봉수 * 20)).strftime('%H:%M:%S')
         df_초봉 = df_초봉.loc[df_초봉['체결시간'].between(s_시작시점, s_종료시점)]
 
         # 차트 생성
-        li_일시 = Chart.make_캔들차트(ax=ax_거래초봉, df_차트=df_초봉, s_봉구분='5초봉', s_차트구분='캔들', b_legend=False)
+        li_일시 = Chart.make_캔들차트(ax=ax_거래초봉, df_차트=df_초봉, s_봉구분=f'{n_초봉수}초봉', s_차트구분='캔들', b_legend=False)
         # s_매수시점, s_매도시점, s_타임아웃시점 = s_매수시점[3:], s_매도시점[3:], s_타임아웃시점[3:]
 
         # 뷰 설정
-        ax_거래초봉.set_title(f'[5초봉] {s_종목명} | {s_매도사유}({n_수익률:.1f}%) | 리스크 {n_리스크:,.0f}원',
+        ax_거래초봉.set_title(f'[{n_초봉수}초봉] {s_종목명} | {s_매도사유}({n_수익률:.1f}%) | 리스크 {n_리스크:,.0f}원',
                           loc='left', fontsize=10, fontweight='bold')
         ax_거래초봉.tick_params(length=0, labelsize=8)
         ax_거래초봉.set_xticks([s_매수시점, s_매도시점])
@@ -1105,7 +1191,7 @@ def run():
     """ 실행 함수 """
     a = AnalyzerBot(b_디버그모드=False, s_시작일자='20251001')
     # li_봉수 = ['5초봉']
-    li_봉수 = ['3분봉']
+    li_봉수 = ['1분봉']
     # ret = a.sync_소스파일()
     ret = a.find_일봉확인()
     ret = [a.make_매매신호(s_봉수=봉수) for 봉수 in li_봉수] # 매수매도 logic에 따른 신호 생성
