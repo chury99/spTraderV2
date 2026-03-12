@@ -49,7 +49,7 @@ class AnalyzerBot:
         self.b_디버그모드 = b_디버그모드
         self.n_멀티코어수 = mp.cpu_count() - 3
         self.dic_args = dict()
-        self.li_매도사유 = ['수익달성', '추세이탈', '손실한계', '타임아웃']
+        self.li_매도사유 = ['초봉이탈', '고가이탈', '손실한계', '타임아웃']
 
         # 서버정보 정의
         dic_서버정보 = json.load(open(os.path.join(self.folder_프로젝트, 'server_info.json'), mode='rt', encoding='utf-8'))
@@ -609,12 +609,14 @@ class AnalyzerBot:
         df_데이터['고가40'] = df_데이터['고가'].shift(1).rolling(40).max()
         df_데이터['고가60'] = df_데이터['고가'].shift(1).rolling(60).max()
         df_데이터['저가3'] = df_데이터['저가'].shift(1).rolling(3).min()
+        df_데이터['저가5'] = df_데이터['저가'].shift(1).rolling(5).min()
         sri_고가, sri_저가, sri_전일종가 = df_데이터['고가'], df_데이터['저가'], df_데이터['종가'].shift(1)
         li_atr산출 = [(sri_고가 - sri_저가), (sri_고가 - sri_전일종가).abs(), (sri_저가 - sri_전일종가).abs()]
         df_데이터['ATR'] = pd.concat(li_atr산출, axis=1).max(axis=1)
         df_데이터['ATR14'] = pd.concat(li_atr산출, axis=1).max(axis=1).rolling(14).mean()
         df_데이터['ATR비율'] = df_데이터['ATR14'] / df_데이터['종가'] * 100
         df_데이터['ATR비율차이'] = df_데이터['ATR비율'] - df_데이터['ATR비율'].shift(1)
+        df_데이터['이격도20'] = df_데이터['종가'] / df_데이터['종가ma20'] * 100
         df_데이터['일봉시가'] = dic_일봉시가[s_종목코드]
         df_데이터['당일봉수'] = (df_데이터['일자'] == s_일자).cumsum()
         df_데이터['봉수'] = s_봉수
@@ -706,6 +708,8 @@ class AnalyzerBot:
                                리스크=dic_args_종목['매도봇_n_리스크'] if b_보유신호 else None,
                                초봉120=dic_args_종목['매도봇_n_초봉120'] if b_보유신호 else None,
                                이격도초봉120=dic_args_종목['매도봇_n_이격도초봉120'] if b_보유신호 else None,
+                               초봉최고수익률=dic_args_종목['매도봇_n_초봉최고수익률'] if b_보유신호 else None,
+                               분봉최고수익률=dic_args_종목['매도봇_n_분봉최고수익률'] if b_보유신호 else None,
                                고가한계=dic_args_종목['매도봇_n_고가한계'] if b_보유신호 else None,
                                손실기준=dic_args_종목['매도봇_n_손실기준'] if b_보유신호 else None)
             dic_매매신호_추가 = {key: [value] for key, value in dic_매매신호_추가.items()}
