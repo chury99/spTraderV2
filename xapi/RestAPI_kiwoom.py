@@ -194,9 +194,10 @@ class RestAPIkiwoom:
         # s_시작일자 = s_종료일자 if s_시작일자 is None else s_시작일자
         s_리스트키 = 'stk_dt_pole_chart_qry'
         s_일자키 = 'dt'
+        b_1회조회 = True if s_시작일자 is None else False
         dic_바디 = dict(stk_cd=s_종목코드, base_dt=s_종료일자, upd_stkpc_tp=s_수정주가)
         dic_데이터 = self.get_tr데이터(s_서버주소=s_서버주소, s_tr아이디=s_tr아이디, dic_바디=dic_바디, s_리스트키=s_리스트키,
-                                 s_기준일from=s_시작일자, s_일자키=s_일자키)
+                                 s_기준일from=s_시작일자, s_일자키=s_일자키, b_1회조회=b_1회조회)
 
         # 데이터 정리
         df_데이터 = pd.DataFrame(dic_데이터[s_리스트키])
@@ -229,9 +230,10 @@ class RestAPIkiwoom:
         # s_시작일자 = s_종료일자 if s_시작일자 is None else s_시작일자
         s_리스트키 = 'stk_min_pole_chart_qry'
         s_일자키 = 'cntr_tm'
+        b_1회조회 = True if s_시작일자 is None else False
         dic_바디 = dict(stk_cd=s_종목코드, tic_scope=s_틱범위, upd_stkpc_tp=s_수정주가)
         dic_데이터 = self.get_tr데이터(s_서버주소=s_서버주소, s_tr아이디=s_tr아이디, dic_바디=dic_바디, s_리스트키=s_리스트키,
-                                 s_기준일from=s_시작일자, s_일자키=s_일자키)
+                                 s_기준일from=s_시작일자, s_일자키=s_일자키, b_1회조회=b_1회조회)
 
         # 데이터 정리
         df_데이터 = pd.DataFrame(dic_데이터[s_리스트키])
@@ -326,7 +328,6 @@ class RestAPIkiwoom:
         # 변수 생성
         s_연속조회여부 = 'Y'
         s_연속조회키 = None
-        b_1회조회 = True if s_기준일from is None else b_1회조회
         dic_데이터_누적 = dict()
 
         # 데이터 조회
@@ -446,7 +447,6 @@ if __name__ == '__main__':
         # df_일봉 = api.tr_주식일봉차트조회요청(s_종목코드='000020')
         # df_분봉 = api.tr_주식분봉차트조회요청(s_종목코드='000020', s_틱범위='1')
         # df_종목별주가 = api.tr_업종별주가요청(s_시장='코스피')
-        # dic_종목코드2종목명 = api.download_전체종목()
         # df_실시간조회순위 = api.tr_실시간종목조회순위()
         # res = api.tr_주식주문(s_구분='매수', s_종목코드='319400', n_주문수량=1, n_주문단가=6590, s_매매구분='보통')
         pass
