@@ -7,7 +7,7 @@ import time
 
 # noinspection SpellCheckingInspection,NonAsciiCharacters,PyPep8Naming,PyShadowingNames,PyTypeChecker
 class RestAPIkiwoom:
-    def __init__(self):
+    def __init__(self, s_계좌번호='52926852'):
         # config 읽어 오기
         self.folder_베이스 = os.path.dirname(os.path.abspath(__file__))
         self.folder_프로젝트 = os.path.dirname(self.folder_베이스)
@@ -19,21 +19,28 @@ class RestAPIkiwoom:
         self.n_tr딜레이 = 0.2    # tr 요청간 딜레이 - 이용약관 제 11조 (API 호출 횟수 제한) 기준 초당 5건
 
         # 토큰 발급
-        self.s_접근토큰 = self.auth_접근토큰갱신()
+        self.s_접근토큰 = self.auth_접근토큰갱신(s_계좌번호)
 
     # noinspection PyTypeChecker
-    def auth_접근토큰갱신(self):
+    def auth_접근토큰갱신(self, s_계좌번호):
         """ 저장된 접속토큰 갱신 후 리턴 """
         # 파일 정보 정의
         path_접속키 = os.path.join(self.folder_베이스, 'kiwoomKey.json')
         path_접근토큰 = os.path.join(self.folder_베이스,'kiwoomToken.json')
 
+        # 접속키 불러오기
+        dic_전체키 = json.load(open(path_접속키, mode='rt', encoding='utf-8'))
+        dic_접속키 = dic_전체키.get(s_계좌번호, dict()) if os.path.exists(path_접속키) else dict()
+
         # 토큰 불러오기
-        if os.path.exists(path_접근토큰):
-            dic_접근토큰 = json.load(open(path_접근토큰, mode='rt', encoding='utf-8'))
-        else:
-            dic_접근토큰 = self.tr_접근토큰발급(path_접속키)
-            json.dump(dic_접근토큰, open(path_접근토큰, mode='wt', encoding='utf-8'), indent=2, ensure_ascii=False)
+        dic_전체토큰 = json.load(open(path_접근토큰, mode='rt', encoding='utf-8')) if os.path.exists(path_접근토큰) else dict()
+        dic_접근토큰 = dic_전체토큰.get(s_계좌번호, dict()) if os.path.exists(path_접근토큰) else dict()
+
+        # 토큰 미존재 시 토큰 발급
+        if len(dic_접근토큰) == 0:
+            dic_접근토큰 = self.tr_접근토큰발급(dic_접속키)
+            dic_전체토큰[s_계좌번호] = dic_접근토큰
+            json.dump(dic_전체토큰, open(path_접근토큰, mode='wt', encoding='utf-8'), indent=4, ensure_ascii=False)
 
         # 정상수신 확인
         if isinstance(dic_접근토큰, str):
@@ -42,19 +49,21 @@ class RestAPIkiwoom:
         # 만료여부 확인
         dt_토큰만료 = pd.Timestamp(dic_접근토큰['expires_dt'])
         if pd.Timestamp.now() > dt_토큰만료 - pd.Timedelta(hours=12):
-            self.tr_접근토큰폐기(path_접속키, path_접근토큰)
-            dic_접근토큰 = self.tr_접근토큰발급(path_접속키)
-            json.dump(dic_접근토큰, open(path_접근토큰, mode='wt', encoding='utf-8'), indent=2, ensure_ascii=False)
+            self.tr_접근토큰폐기(dic_접속키, dic_접근토큰)
+            dic_접근토큰 = self.tr_접근토큰발급(dic_접속키)
+            dic_전체토큰[s_계좌번호] = dic_접근토큰
+            # json.dump(dic_접근토큰, open(path_접근토큰, mode='wt', encoding='utf-8'), indent=2, ensure_ascii=False)
+            json.dump(dic_전체토큰, open(path_접근토큰, mode='wt', encoding='utf-8'), indent=4, ensure_ascii=False)
 
         # 토큰값 정의
         s_접근토큰 = dic_접근토큰['token']
 
         return s_접근토큰
 
-    def tr_접근토큰발급(self, path_접속키):
+    def tr_접근토큰발급(self, dic_접속키):
         """ au10001 | 저장된 appKey, secretKey 읽어와서 토큰 발급 후 리턴 """
         # 입력정보 불러오기 - 접속키
-        dic_접속키 = json.load(open(path_접속키, mode='rt', encoding='utf-8'))
+        # dic_접속키 = json.load(open(path_접속키, mode='rt', encoding='utf-8'))
 
         # 데이터 요청
         s_서버주소 = self.info_서버주소(s_서비스='접근토큰발급')
@@ -69,11 +78,11 @@ class RestAPIkiwoom:
 
         return dic_데이터
 
-    def tr_접근토큰폐기(self, path_접속키, path_접근토큰):
+    def tr_접근토큰폐기(self, dic_접속키, dic_접근토큰):
         """ au10002 | 서버에서 발행한 토큰 폐기 요청 """
         # 입력정보 불러오기 - 접속키, 접근토큰
-        dic_접속키 = json.load(open(path_접속키, mode='rt', encoding='utf-8'))
-        dic_접근토큰 = json.load(open(path_접근토큰, mode='rt', encoding='utf-8'))
+        # dic_접속키 = json.load(open(path_접속키, mode='rt', encoding='utf-8'))
+        # dic_접근토큰 = json.load(open(path_접근토큰, mode='rt', encoding='utf-8'))
 
         # 데이터 요청
         s_서버주소 = self.info_서버주소(s_서비스='접근토큰폐기')
@@ -431,7 +440,7 @@ class RestAPIkiwoom:
 if __name__ == '__main__':
     # noinspection PyPep8Naming,NonAsciiCharacters,SpellCheckingInspection
     def test():
-        api = RestAPIkiwoom()
+        api = RestAPIkiwoom(s_계좌번호='53977788')
         # dic_계좌잔고, df_종목별잔고 = api.tr_체결잔고요청()
         # df_일봉 = api.tr_주식일봉차트조회요청(s_종목코드='000020', s_기준일from='20230101', s_기준일to='20250831')
         # df_분봉 = api.tr_주식분봉차트조회요청(s_종목코드='000020', s_틱범위='1')
