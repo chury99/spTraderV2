@@ -326,6 +326,7 @@ class RestAPIkiwoom:
         # 변수 생성
         s_연속조회여부 = 'Y'
         s_연속조회키 = None
+        b_1회조회 = True if s_기준일from is None else b_1회조회
         dic_데이터_누적 = dict()
 
         # 데이터 조회
@@ -442,7 +443,7 @@ if __name__ == '__main__':
     def test():
         api = RestAPIkiwoom(s_계좌번호='53977788')
         # dic_계좌잔고, df_종목별잔고 = api.tr_체결잔고요청()
-        # df_일봉 = api.tr_주식일봉차트조회요청(s_종목코드='000020', s_기준일from='20230101', s_기준일to='20250831')
+        # df_일봉 = api.tr_주식일봉차트조회요청(s_종목코드='000020')
         # df_분봉 = api.tr_주식분봉차트조회요청(s_종목코드='000020', s_틱범위='1')
         # df_종목별주가 = api.tr_업종별주가요청(s_시장='코스피')
         # dic_종목코드2종목명 = api.download_전체종목()
