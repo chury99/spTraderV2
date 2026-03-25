@@ -7,22 +7,23 @@ import time
 
 # noinspection SpellCheckingInspection,NonAsciiCharacters,PyPep8Naming,PyShadowingNames,PyTypeChecker
 class RestAPIkiwoom:
-    def __init__(self, s_계좌번호='52926852'):
+    def __init__(self, s_계좌번호=None):
         # config 읽어 오기
         self.folder_베이스 = os.path.dirname(os.path.abspath(__file__))
         self.folder_프로젝트 = os.path.dirname(self.folder_베이스)
         dic_config = json.load(open(os.path.join(self.folder_프로젝트, 'config.json'), mode='rt', encoding='utf-8'))
 
         # 기준정보 정의
+        self.s_계좌번호 = dic_config['계좌번호'] if s_계좌번호 is None else s_계좌번호
         self.s_서버구분 = dic_config['서버구분']   # 실서버, 모의서버
         self.s_거래소 = dic_config['거래소구분']    # KRX:한국거래소, NXT:넥스트트레이드
         self.n_tr딜레이 = 0.2    # tr 요청간 딜레이 - 이용약관 제 11조 (API 호출 횟수 제한) 기준 초당 5건
 
         # 토큰 발급
-        self.s_접근토큰 = self.auth_접근토큰갱신(s_계좌번호)
+        self.s_접근토큰 = self.auth_접근토큰갱신()
 
     # noinspection PyTypeChecker
-    def auth_접근토큰갱신(self, s_계좌번호):
+    def auth_접근토큰갱신(self):
         """ 저장된 접속토큰 갱신 후 리턴 """
         # 파일 정보 정의
         path_접속키 = os.path.join(self.folder_베이스, 'kiwoomKey.json')
@@ -30,16 +31,16 @@ class RestAPIkiwoom:
 
         # 접속키 불러오기
         dic_전체키 = json.load(open(path_접속키, mode='rt', encoding='utf-8'))
-        dic_접속키 = dic_전체키.get(s_계좌번호, dict()) if os.path.exists(path_접속키) else dict()
+        dic_접속키 = dic_전체키.get(self.s_계좌번호, dict()) if os.path.exists(path_접속키) else dict()
 
         # 토큰 불러오기
         dic_전체토큰 = json.load(open(path_접근토큰, mode='rt', encoding='utf-8')) if os.path.exists(path_접근토큰) else dict()
-        dic_접근토큰 = dic_전체토큰.get(s_계좌번호, dict()) if os.path.exists(path_접근토큰) else dict()
+        dic_접근토큰 = dic_전체토큰.get(self.s_계좌번호, dict()) if os.path.exists(path_접근토큰) else dict()
 
         # 토큰 미존재 시 토큰 발급
         if len(dic_접근토큰) == 0:
             dic_접근토큰 = self.tr_접근토큰발급(dic_접속키)
-            dic_전체토큰[s_계좌번호] = dic_접근토큰
+            dic_전체토큰[self.s_계좌번호] = dic_접근토큰
             json.dump(dic_전체토큰, open(path_접근토큰, mode='wt', encoding='utf-8'), indent=4, ensure_ascii=False)
 
         # 정상수신 확인
@@ -51,7 +52,7 @@ class RestAPIkiwoom:
         if pd.Timestamp.now() > dt_토큰만료 - pd.Timedelta(hours=12):
             self.tr_접근토큰폐기(dic_접속키, dic_접근토큰)
             dic_접근토큰 = self.tr_접근토큰발급(dic_접속키)
-            dic_전체토큰[s_계좌번호] = dic_접근토큰
+            dic_전체토큰[self.s_계좌번호] = dic_접근토큰
             # json.dump(dic_접근토큰, open(path_접근토큰, mode='wt', encoding='utf-8'), indent=2, ensure_ascii=False)
             json.dump(dic_전체토큰, open(path_접근토큰, mode='wt', encoding='utf-8'), indent=4, ensure_ascii=False)
 
@@ -114,12 +115,16 @@ class RestAPIkiwoom:
         dic_데이터 = self.get_tr데이터(s_서버주소=s_서버주소, s_tr아이디=s_tr아이디, dic_바디=dic_바디)
 
         # 데이터 정리
-        if dic_데이터 != 'err_서버응답이상':
+        # if dic_데이터 != 'err_서버응답이상':
+        if isinstance(dic_데이터, dict):
             s_결과코드 = dic_데이터['return_code']
             s_결과메세지 = dic_데이터['return_msg']
             s_주문번호 = dic_데이터['ord_no']
             s_주문거래소 = dic_데이터['dmst_stex_tp']
             return dic_데이터
+        elif dic_데이터.status_code == 200:
+            print(f'주문이상 - {dic_데이터.text}')
+            return dic_데이터.text
         else:
             print(f'주문이상 - {dic_데이터}')
             return dic_데이터
@@ -149,6 +154,36 @@ class RestAPIkiwoom:
             df_종목별잔고['손익률'] = df_데이터['pl_rt'].astype(float)
 
         return dic_계좌잔고, df_종목별잔고
+
+    def tr_당일매매일지요청(self):
+        """ 계좌 | ka10170 | 전체손익 및 종목별 매매일지 조회 후 리턴 """
+        # tr 요청
+        s_서버주소 = self.info_서버주소(s_서비스='계좌')
+        s_tr아이디 = 'ka10170'
+        s_리스트키 = 'tdy_trde_diary'
+        dic_바디 = dict(base_dt='', ottks_tp='2', ch_crd_tp='0')
+        dic_데이터 = self.get_tr데이터(s_서버주소=s_서버주소, s_tr아이디=s_tr아이디, dic_바디=dic_바디, s_리스트키=s_리스트키)
+
+        # 데이터 정리
+        dic_전체손익 = dict(n_총매도금액=int(dic_데이터['tot_sell_amt']), n_총매수금액=int(dic_데이터['tot_buy_amt']),
+                        n_총수수료세금=int(dic_데이터['tot_cmsn_tax']), n_총정산금액=int(dic_데이터['tot_exct_amt']),
+                        n_총손익금액=int(dic_데이터['tot_exct_amt']), n_총수익률=float(dic_데이터['tot_prft_rt']))
+        df_데이터 = pd.DataFrame(dic_데이터[s_리스트키])
+        df_매매일지 = pd.DataFrame()
+        if len(df_데이터) > 0:
+            df_매매일지['종목코드'] = df_데이터['stk_cd'].astype(str)
+            df_매매일지['종목명'] = df_데이터['stk_nm'].astype(str)
+            df_매매일지['매수평균가'] = df_데이터['buy_avg_pric'].astype(int)
+            df_매매일지['매수수량'] = df_데이터['buy_qty'].astype(int)
+            df_매매일지['매도평균가'] = df_데이터['sel_avg_pric'].astype(int)
+            df_매매일지['매도수량'] = df_데이터['sell_qty'].astype(int)
+            df_매매일지['수수료세금'] = df_데이터['cmsn_alm_tax'].astype(int)
+            df_매매일지['손익금액'] = df_데이터['pl_amt'].astype(int)
+            df_매매일지['매도금액'] = df_데이터['sell_amt'].astype(int)
+            df_매매일지['매수금액'] = df_데이터['buy_amt'].astype(int)
+            df_매매일지['수익률'] = df_데이터['prft_rt'].astype(float)
+
+        return dic_전체손익, df_매매일지
 
     def tr_업종별주가요청(self, s_시장):
         """ 업종 | ka20002 | 시장 내 전체 종목에 대한 정보 조회 후 리턴 """
@@ -442,12 +477,14 @@ class RestAPIkiwoom:
 if __name__ == '__main__':
     # noinspection PyPep8Naming,NonAsciiCharacters,SpellCheckingInspection
     def test():
-        api = RestAPIkiwoom(s_계좌번호='53977788')
+        # api = RestAPIkiwoom()
         # dic_계좌잔고, df_종목별잔고 = api.tr_체결잔고요청()
         # df_일봉 = api.tr_주식일봉차트조회요청(s_종목코드='000020')
         # df_분봉 = api.tr_주식분봉차트조회요청(s_종목코드='000020', s_틱범위='1')
         # df_종목별주가 = api.tr_업종별주가요청(s_시장='코스피')
         # df_실시간조회순위 = api.tr_실시간종목조회순위()
         # res = api.tr_주식주문(s_구분='매수', s_종목코드='319400', n_주문수량=1, n_주문단가=6590, s_매매구분='보통')
+        api = RestAPIkiwoom(s_계좌번호='53977788')
+        dic_전체손익, df_매매일지 = api.tr_당일매매일지요청()
         pass
     test()
