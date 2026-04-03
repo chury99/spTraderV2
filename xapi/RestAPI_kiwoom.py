@@ -155,13 +155,13 @@ class RestAPIkiwoom:
 
         return dic_계좌잔고, df_종목별잔고
 
-    def tr_당일매매일지요청(self):
+    def tr_당일매매일지요청(self, s_조회일자=''):
         """ 계좌 | ka10170 | 전체손익 및 종목별 매매일지 조회 후 리턴 """
         # tr 요청
         s_서버주소 = self.info_서버주소(s_서비스='계좌')
         s_tr아이디 = 'ka10170'
         s_리스트키 = 'tdy_trde_diary'
-        dic_바디 = dict(base_dt='', ottks_tp='2', ch_crd_tp='0')
+        dic_바디 = dict(base_dt=s_조회일자, ottks_tp='2', ch_crd_tp='0')
         dic_데이터 = self.get_tr데이터(s_서버주소=s_서버주소, s_tr아이디=s_tr아이디, dic_바디=dic_바디, s_리스트키=s_리스트키)
 
         # 데이터 정리
@@ -170,14 +170,14 @@ class RestAPIkiwoom:
                         n_총손익금액=int(dic_데이터['tot_exct_amt']), n_총수익률=float(dic_데이터['tot_prft_rt']))
         df_데이터 = pd.DataFrame(dic_데이터[s_리스트키])
         df_매매일지 = pd.DataFrame()
-        if len(df_데이터) > 0:
+        if df_데이터['stk_cd'].values[0] != '':
             df_매매일지['종목코드'] = df_데이터['stk_cd'].astype(str)
             df_매매일지['종목명'] = df_데이터['stk_nm'].astype(str)
-            df_매매일지['매수평균가'] = df_데이터['buy_avg_pric'].astype(int)
+            df_매매일지['매수평균가'] = df_데이터['buy_avg_pric'].astype(float)
             df_매매일지['매수수량'] = df_데이터['buy_qty'].astype(int)
-            df_매매일지['매도평균가'] = df_데이터['sel_avg_pric'].astype(int)
+            df_매매일지['매도평균가'] = df_데이터['sel_avg_pric'].astype(float)
             df_매매일지['매도수량'] = df_데이터['sell_qty'].astype(int)
-            df_매매일지['수수료세금'] = df_데이터['cmsn_alm_tax'].astype(int)
+            df_매매일지['수수료세금'] = df_데이터['cmsn_alm_tax'].astype(float)
             df_매매일지['손익금액'] = df_데이터['pl_amt'].astype(int)
             df_매매일지['매도금액'] = df_데이터['sell_amt'].astype(int)
             df_매매일지['매수금액'] = df_데이터['buy_amt'].astype(int)
@@ -484,7 +484,7 @@ if __name__ == '__main__':
         # df_종목별주가 = api.tr_업종별주가요청(s_시장='코스피')
         # df_실시간조회순위 = api.tr_실시간종목조회순위()
         # res = api.tr_주식주문(s_구분='매수', s_종목코드='319400', n_주문수량=1, n_주문단가=6590, s_매매구분='보통')
-        api = RestAPIkiwoom(s_계좌번호='53977788')
-        dic_전체손익, df_매매일지 = api.tr_당일매매일지요청()
+        # api = RestAPIkiwoom(s_계좌번호='53977788')
+        # dic_전체손익, df_매매일지 = api.tr_당일매매일지요청()
         pass
     test()

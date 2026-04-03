@@ -20,7 +20,8 @@ def check_조회순위(s_일자):
     dic_일봉 = pd.read_pickle(os.path.join(folder_차트캐시, '일봉1', f'dic_차트캐시_1일봉_{s_일자}.pkl'))
 
     # 조회순위 불러오기
-    df_조회순위 = pd.read_csv(os.path.join(folder_조회순위, f'df_조회순위_{s_일자}.csv'), encoding='cp949', dtype=str)
+    df_조회순위 = pd.read_csv(os.path.join(folder_조회순위, f'df_조회순위_{s_일자}.csv'),
+                            encoding='cp949', dtype=str, on_bad_lines='skip')
     li_대상종목 = sorted(df_조회순위.dropna(subset='종목코드')['종목코드'].unique().tolist())
 
     # 분석대상종목 불러오기
@@ -72,7 +73,8 @@ def check_조회순위_추세돌파(s_일자):
     dic_일봉 = pd.read_pickle(os.path.join(folder_차트캐시, '일봉1', f'dic_차트캐시_1일봉_{s_일자}.pkl'))
 
     # 조회순위 불러오기
-    df_조회순위 = pd.read_csv(os.path.join(folder_조회순위, f'df_조회순위_{s_일자}.csv'), encoding='cp949', dtype=str)
+    df_조회순위 = pd.read_csv(os.path.join(folder_조회순위, f'df_조회순위_{s_일자}.csv'),
+                            encoding='cp949', dtype=str, on_bad_lines='skip')
     li_대상종목 = sorted(df_조회순위.dropna(subset='종목코드')['종목코드'].unique().tolist())
 
     # 분석대상종목 불러오기

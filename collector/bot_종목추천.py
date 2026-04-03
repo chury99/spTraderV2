@@ -50,7 +50,8 @@ class CollectorBot:
     def find_거북이추천(self):
         """ 조회순위 종목 중 거북이추천 종목에 포함된 종목 선정하여 저장 """
         # 조회순위 불러오기
-        df_조회순위 = pd.read_csv(os.path.join(self.folder_조회순위, f'df_조회순위_{self.s_오늘}.csv'), encoding='cp949', dtype=str)
+        df_조회순위 = pd.read_csv(os.path.join(self.folder_조회순위, f'df_조회순위_{self.s_오늘}.csv')
+                                , encoding='cp949', dtype=str, on_bad_lines='skip')
         # li_조회순위 = df_조회순위['종목코드'].unique().tolist()
         li_조회순위 = df_조회순위.dropna(subset='종목코드')['종목코드'].unique().tolist()
 
@@ -93,7 +94,7 @@ class CollectorBot:
         # 데이터 정리
         df_상승후보 = analyzer.logic_상승후보.check_조회순위(s_일자=s_일자)
         df_추천종목 = df_상승후보.loc[(df_상승후보['당일조건'])
-                                & (df_상승후보['당일바디'] > 0) & (df_상승후보['당일바디'] < 2)]\
+                                & (df_상승후보['당일바디'] > -2) & (df_상승후보['당일바디'] < 2)]\
                     if len(df_상승후보) > 0 else pd.DataFrame()
         li_추천종목 = sorted(df_추천종목['종목코드'].unique())
         dic_코드2종목명 = df_추천종목.set_index('종목코드')['종목명'].to_dict()
