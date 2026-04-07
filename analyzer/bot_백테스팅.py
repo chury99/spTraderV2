@@ -257,7 +257,7 @@ class AnalyzerBot:
 
             # 매수에서 매도까지 데이터 골라내기
             li_df매매신호 = [df.replace({None: ''}) for df in dic_매매신호.values()]
-            df_매매신호_통합 = pd.concat(li_df매매신호, axis=0)
+            df_매매신호_통합 = pd.concat(li_df매매신호, axis=0) if len(li_df매매신호) > 0 else pd.DataFrame()
             if df_매매신호_통합.empty: continue
             df_매수매도 = df_매매신호_통합.loc[df_매매신호_통합['보유신호'] == True, :].copy().reset_index(drop=True)
 
@@ -1126,7 +1126,7 @@ class AnalyzerBot:
 # noinspection PyNoneFunctionAssignment,NonAsciiCharacters,PyPep8Naming,PyShadowingNames
 def run():
     """ 실행 함수 """
-    a = AnalyzerBot(b_디버그모드=False, s_시작일자='20251001')
+    a = AnalyzerBot(b_디버그모드=False, s_시작일자='20251011')
     li_봉수 = ['5초봉']
     # li_봉수 = ['1분봉']
     # ret = a.sync_소스파일()
