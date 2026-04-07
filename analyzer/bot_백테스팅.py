@@ -16,7 +16,8 @@ import matplotlib.pyplot as plt
 from pandas.core.methods.selectn import SelectNSeries
 
 import ut.로그maker, ut.폴더manager, ut.도구manager as Tool, ut.차트maker as Chart
-import analyzer.logic_매수매도 as Logic
+# import analyzer.logic_매수매도_추세돌파 as Logic
+import analyzer.logic_매수매도_매수포착 as Logic
 
 
 # noinspection NonAsciiCharacters,SpellCheckingInspection,PyPep8Naming,PyTypeChecker,PyShadowingNames
@@ -587,11 +588,9 @@ class AnalyzerBot:
         df_데이터 = pd.DataFrame()
         # if s_봉구분 == '초봉':
         if '초봉' in s_봉수:
-            dic_변환기준 = dict(시가='first', 고가='max', 저가='min', 종가='last', 거래량='sum')
-            # df_데이터 = df_1초봉.resample(f'{n_봉수}S').agg(dic_변환기준) if s_봉구분 == '초봉' else\
-            #             df_1초봉.resample(f'{n_봉수}min').agg(dic_변환기준) if s_봉구분 == '분봉' else pd.DataFrame()
-            df_데이터 = df_1초봉.resample(f'{n_봉수}S').agg(dic_변환기준) if '초봉' in s_봉수 else\
-                        df_1초봉.resample(f'{n_봉수}min').agg(dic_변환기준) if '분봉' in s_봉수 else pd.DataFrame()
+            dic_변환기준 = dict(시가='first', 고가='max', 저가='min', 종가='last', 거래량='sum', 체결횟수='sum',
+                            매수량='sum', 매수횟수='sum', 매도량='sum', 매도횟수='sum')
+            df_데이터 = df_1초봉.resample(f'{n_봉수}s').agg(dic_변환기준)
             df_데이터['일자'] = df_데이터.index.strftime('%Y%m%d')
             df_데이터['시간'] = df_데이터.index.strftime('%H:%M:%S')
             df_데이터['종목코드'] = s_종목코드
@@ -600,6 +599,7 @@ class AnalyzerBot:
         if '분봉' in s_봉수:
             df_데이터 = df_분봉
         li_컬럼명 = ['일자', '종목코드', '종목명', '시간', '시가', '고가', '저가', '종가', '거래량']
+        li_컬럼명 = li_컬럼명 + ['체결횟수', '매수량', '매수횟수', '매도량', '매도횟수'] if '초봉' in s_봉수 else li_컬럼명
         df_데이터 = df_데이터.loc[:, li_컬럼명]
 
         # 추가정보 생성
@@ -609,6 +609,7 @@ class AnalyzerBot:
         df_데이터['종가ma120'] = df_데이터['종가'].rolling(120).mean()
         df_데이터['거래량ma5'] = df_데이터['거래량'].rolling(5).mean()
         df_데이터['거래량ma20'] = df_데이터['거래량'].rolling(20).mean()
+        df_데이터['매수횟수ma60'] = df_데이터['매수횟수'].rolling(60).mean()
         df_데이터['거래대금'] = df_데이터['종가'] * df_데이터['거래량']
         df_데이터['고가5'] = df_데이터['고가'].shift(1).rolling(5).max()
         df_데이터['고가14'] = df_데이터['고가'].shift(1).rolling(14).max()
@@ -713,8 +714,6 @@ class AnalyzerBot:
                                보유초=dic_args_종목['매도봇_n_경과시간'] if b_보유신호 else None,
                                타임아웃=dic_args_종목['매도봇_n_타임아웃'] if b_보유신호 else None,
                                리스크=dic_args_종목['매도봇_n_리스크'] if b_보유신호 else None,
-                               초봉120=dic_args_종목['매도봇_n_초봉120'] if b_보유신호 else None,
-                               이격도초봉120=dic_args_종목['매도봇_n_이격도초봉120'] if b_보유신호 else None,
                                초봉최고수익률=dic_args_종목['매도봇_n_초봉최고수익률'] if b_보유신호 else None,
                                분봉최고수익률=dic_args_종목['매도봇_n_분봉최고수익률'] if b_보유신호 else None,
                                고가한계=dic_args_종목['매도봇_n_고가한계'] if b_보유신호 else None,
@@ -1128,8 +1127,8 @@ class AnalyzerBot:
 def run():
     """ 실행 함수 """
     a = AnalyzerBot(b_디버그모드=False, s_시작일자='20251001')
-    # li_봉수 = ['5초봉']
-    li_봉수 = ['1분봉']
+    li_봉수 = ['5초봉']
+    # li_봉수 = ['1분봉']
     # ret = a.sync_소스파일()
     ret = a.find_일봉확인()
     ret = [a.make_매매신호(s_봉수=봉수) for 봉수 in li_봉수] # 매수매도 logic에 따른 신호 생성
