@@ -50,7 +50,7 @@ class AnalyzerBot:
         self.b_디버그모드 = b_디버그모드
         self.n_멀티코어수 = mp.cpu_count() - 3
         self.dic_args = dict()
-        self.li_매도사유 = ['초봉이탈', '고가이탈', '손실한계', '타임아웃']
+        self.li_매도사유 = ['매수소멸', '고가이탈', '손실한계', '타임아웃']
 
         # 서버정보 정의
         dic_서버정보 = json.load(open(os.path.join(self.folder_프로젝트, 'server_info.json'), mode='rt', encoding='utf-8'))
@@ -451,6 +451,7 @@ class AnalyzerBot:
             dic_일봉 = pd.read_pickle(os.path.join(self.folder_차트캐시, '일봉1', f'dic_차트캐시_1일봉_{s_일자}.pkl'))
             dic_분봉 = pd.read_pickle(os.path.join(self.folder_차트캐시, f'분봉{n_분봉수}', f'dic_차트캐시_{n_분봉수}분봉_{s_일자}.pkl'))
             dic_초봉 = pd.read_pickle(os.path.join(self.folder_차트캐시, f'초봉{n_초봉수}', f'dic_차트캐시_{n_초봉수}초봉_{s_일자}.pkl'))
+            dic_1초봉 = pd.read_pickle(os.path.join(self.folder_차트캐시, f'초봉1', f'dic_차트캐시_1초봉_{s_일자}.pkl'))
 
             # 데이터 생성 - 일별
             df_일별 = dic_수익내역['누적리포트'][1:].sort_values('일자').reset_index(drop=True)
@@ -513,16 +514,19 @@ class AnalyzerBot:
                 df_일봉 = dic_일봉[s_종목코드]
                 df_분봉 = dic_분봉[s_종목코드]
                 df_초봉 = dic_초봉[s_종목코드]
+                df_1초봉 = dic_1초봉[s_종목코드]
 
                 # 차트 배치
                 ax_거래일봉 = fig.add_subplot(n_차트_세로, n_차트_가로, 3 * (i + 1) + 1)
-                ax_거래분봉 = fig.add_subplot(n_차트_세로, n_차트_가로, 3 * (i + 1) + 2)
-                ax_거래초봉 = fig.add_subplot(n_차트_세로, n_차트_가로, 3 * (i + 1) + 3)
+                # ax_거래분봉 = fig.add_subplot(n_차트_세로, n_차트_가로, 3 * (i + 1) + 2)
+                ax_거래초봉 = fig.add_subplot(n_차트_세로, n_차트_가로, 3 * (i + 1) + 2)
+                ax_거래1초봉 = fig.add_subplot(n_차트_세로, n_차트_가로, 3 * (i + 1) + 3)
 
                 # 차트 구성
                 ret = self._ax_거래일봉(ax_거래일봉=ax_거래일봉, df_일봉=df_일봉, dic_거래=dic_거래)
-                ret = self._ax_거래분봉(ax_거래분봉=ax_거래분봉, df_분봉=df_분봉, dic_거래=dic_거래)
+                # ret = self._ax_거래분봉(ax_거래분봉=ax_거래분봉, df_분봉=df_분봉, dic_거래=dic_거래)
                 ret = self._ax_거래초봉(ax_거래초봉=ax_거래초봉, df_초봉=df_초봉, dic_거래=dic_거래)
+                ret = self._ax_거래초봉(ax_거래초봉=ax_거래1초봉, df_초봉=df_1초봉, dic_거래=dic_거래)
 
             # 매매일보 저장
             Tool.df저장(df=df_매매일보, path=os.path.join(folder_타겟, f'{file_타겟}_{s_일자}_{s_봉수}'))
@@ -536,7 +540,7 @@ class AnalyzerBot:
                 os.system(f'xattr -d com.apple.quarantine {os.path.join(folder_그래프, file_그래프)} 2>/dev/null')
 
             # 그래프 웹서버 복사
-            s_전략명 = 'cc전략'
+            s_전략명 = '매수포착'
             li_복사한파일명, li_삭제한파일명, dic_서버정보 = Tool.sftp파일업로드(folder_로컬=folder_그래프, folder_서버=s_전략명,
                                                             s_파일명=file_그래프, n_파일보관일수=30)
 
@@ -640,7 +644,7 @@ class AnalyzerBot:
             if df_1초봉.loc[dt_시점, '거래량'] == 0: continue
             s_시점 = dt_시점.strftime('%H:%M:%S')
             n_현재가 = df_1초봉.loc[dt_시점, '종가'] if dt_시점 in df_1초봉.index else df_데이터.loc[dt_시점, '시가']
-            df_1초봉시점 = df_1초봉.loc[:dt_시점]
+            df_1초봉시점 = df_1초봉.loc[:dt_시점][:-1]
             # b_매수탐색 = (dt_시점.second % n_봉수 == 0) if s_봉구분 == '초봉' else\
             #             (dt_시점.minute % n_봉수 == 0 and dt_시점.second == 1) if s_봉구분 == '분봉' else False
             b_매수탐색 = (dt_시점.second % n_봉수 == 0) if '초봉' in s_봉수 else\
@@ -1045,7 +1049,7 @@ class AnalyzerBot:
 
         # 분봉 잘라내기
         s_시작시점 = (pd.Timestamp(s_매수시점) - pd.Timedelta(minutes=n_분봉수 * 20)).strftime('%H:%M:%S')
-        s_종료시점 = (pd.Timestamp(s_타임아웃시점) + pd.Timedelta(minutes=n_분봉수 * 10)).strftime('%H:%M:%S')
+        s_종료시점 = (pd.Timestamp(max(s_매도시점, s_타임아웃시점)) + pd.Timedelta(minutes=n_분봉수 * 10)).strftime('%H:%M:%S')
         df_분봉 = df_분봉.loc[df_분봉['시간'].between(s_시작시점, s_종료시점)]
 
         # 차트 생성
@@ -1080,7 +1084,8 @@ class AnalyzerBot:
         s_매도사유, n_수익률, n_리스크 = dic_거래['매도사유'], dic_거래['수익률'], dic_거래['리스크']
         s_봉수 = dic_거래['봉수']
         n_타임아웃 = dic_거래['타임아웃']
-        n_초봉수 = int(s_봉수.replace('초봉', '')) if '초봉' in s_봉수 else 1
+        # n_초봉수 = int(s_봉수.replace('초봉', '')) if '초봉' in s_봉수 else 1
+        n_초봉수 = int(df_초봉.index.diff().dropna().min().total_seconds()) if not df_초봉.empty else 1
         s_매수시점 = pd.Timestamp(dic_거래['매수시간']).floor(f'{n_초봉수}s').strftime('%H:%M:%S')
         s_매도시점 = pd.Timestamp(dic_거래['매도시간']).floor(f'{n_초봉수}s').strftime('%H:%M:%S')
         s_타임아웃시점 = (pd.Timestamp(s_매수시점) + pd.Timedelta(seconds=n_타임아웃)).floor(f'{n_초봉수}s').strftime('%H:%M:%S')
@@ -1097,18 +1102,23 @@ class AnalyzerBot:
         df_초봉['거래량ma120'] = df_초봉['거래량'].rolling(120).mean()
 
         # 분봉 잘라내기
-        s_시작시점 = (pd.Timestamp(s_매수시점) - pd.Timedelta(seconds=n_초봉수 * 20)).strftime('%H:%M:%S')
-        s_종료시점 = (pd.Timestamp(s_타임아웃시점) + pd.Timedelta(seconds=n_초봉수 * 20)).strftime('%H:%M:%S') if '초봉' in s_봉수\
-                    else (pd.Timestamp(s_매도시점) + pd.Timedelta(seconds=n_초봉수 * 20)).strftime('%H:%M:%S')
+        s_시작시점 = (pd.Timestamp(s_매수시점) - pd.Timedelta(seconds=n_초봉수 * 10)).strftime('%H:%M:%S')
+        s_종료시점 = (pd.Timestamp(max(s_타임아웃시점, s_매도시점)) + pd.Timedelta(seconds=n_초봉수 * 10)).strftime('%H:%M:%S')\
+            if '초봉' in s_봉수 else (pd.Timestamp(s_매도시점) + pd.Timedelta(seconds=n_초봉수 * 20)).strftime('%H:%M:%S')
         df_초봉 = df_초봉.loc[df_초봉['체결시간'].between(s_시작시점, s_종료시점)]
 
         # 차트 생성
         li_일시 = Chart.make_캔들차트(ax=ax_거래초봉, df_차트=df_초봉, s_봉구분=f'{n_초봉수}초봉', s_차트구분='캔들', b_legend=False)
+        ax_매수금액 = ax_거래초봉.twinx()
+        ary_매수금액 = df_초봉['매수량'].values * df_초봉['종가'].values
+        ax_매수금액.bar(li_일시, ary_매수금액, width=0.8, color='grey', alpha=0.7)
+        ax_매수금액.set_ylim(0, 5 * ary_매수금액.max())
 
         # 뷰 설정
         ax_거래초봉.set_title(f'[{n_초봉수}초봉] {s_종목명} | {s_매도사유}({n_수익률:.1f}%) | 리스크 {n_리스크:,.0f}원',
                           loc='left', fontsize=10, fontweight='bold')
         ax_거래초봉.tick_params(length=0, labelsize=8)
+        ax_매수금액.tick_params(length=0, labelsize=8)
         ax_거래초봉.set_xticks([s_매수시점, s_매도시점])
 
         # 거래정보 설정
@@ -1119,6 +1129,7 @@ class AnalyzerBot:
 
         # 타임아웃정보 설정
         ax_거래초봉.axvspan(li_일시[0], s_매수시점, alpha=0.3, color=dic_색상['회색'])
+        ax_거래초봉.axvspan(s_타임아웃시점, li_일시[-1], alpha=0.3, color=dic_색상['회색'])
 
         return ax_거래초봉
 
