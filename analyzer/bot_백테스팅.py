@@ -351,7 +351,7 @@ class AnalyzerBot:
 
             # 조회순위 불러오기
             df_조회순위 = pd.read_csv(os.path.join(self.folder_조회순위, f'df_조회순위_{s_일자}.csv'),
-                                  encoding='cp949', dtype=str)
+                                  encoding='cp949', dtype=str, on_bad_lines='skip')
 
             # 시간별 검증
             li_df수익내역 = list()
@@ -615,6 +615,8 @@ class AnalyzerBot:
         df_데이터['거래량ma20'] = df_데이터['거래량'].rolling(20).mean()
         df_데이터['매수횟수ma60'] = df_데이터['매수횟수'].rolling(60).mean()
         df_데이터['거래대금'] = df_데이터['종가'] * df_데이터['거래량']
+        df_데이터['매수대금'] = df_데이터['종가'] * df_데이터['매수횟수']
+        df_데이터['매수대금ma60'] = df_데이터['매수대금'].rolling(60).mean()
         df_데이터['고가5'] = df_데이터['고가'].shift(1).rolling(5).max()
         df_데이터['고가14'] = df_데이터['고가'].shift(1).rolling(14).max()
         df_데이터['고가20'] = df_데이터['고가'].shift(1).rolling(20).max()
@@ -647,7 +649,7 @@ class AnalyzerBot:
             df_1초봉시점 = df_1초봉.loc[:dt_시점][:-1]
             # b_매수탐색 = (dt_시점.second % n_봉수 == 0) if s_봉구분 == '초봉' else\
             #             (dt_시점.minute % n_봉수 == 0 and dt_시점.second == 1) if s_봉구분 == '분봉' else False
-            b_매수탐색 = (dt_시점.second % n_봉수 == 0) if '초봉' in s_봉수 else\
+            b_매수탐색 = ((dt_시점.second - 1) % n_봉수 == 0) if '초봉' in s_봉수 else\
                         (dt_시점.minute % n_봉수 == 0 and dt_시점.second == 1) if '분봉' in s_봉수 else False
 
             # 기준봉 준비 - 현재시점 이전 봉 데이터
@@ -720,7 +722,6 @@ class AnalyzerBot:
                                리스크=dic_args_종목['매도봇_n_리스크'] if b_보유신호 else None,
                                초봉최고수익률=dic_args_종목['매도봇_n_초봉최고수익률'] if b_보유신호 else None,
                                분봉최고수익률=dic_args_종목['매도봇_n_분봉최고수익률'] if b_보유신호 else None,
-                               고가한계=dic_args_종목['매도봇_n_고가한계'] if b_보유신호 else None,
                                손실기준=dic_args_종목['매도봇_n_손실기준'] if b_보유신호 else None)
             dic_매매신호_추가 = {key: [value] for key, value in dic_매매신호_추가.items()}
             dic_매매신호 = {key: dic_매매신호.get(key, list()) + dic_매매신호_추가.get(key, list())

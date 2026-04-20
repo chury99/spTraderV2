@@ -8,7 +8,7 @@ import pandas as pd
 
 import ut.로그maker, ut.폴더manager, ut.도구manager as Tool
 import xapi.RestAPI_kiwoom, xapi.WebsocketAPI_kiwoom
-import analyzer.logic_상승후보
+import analyzer.logic_상승후보, analyzer.logic_상승확률
 
 
 # noinspection NonAsciiCharacters,SpellCheckingInspection,PyPep8Naming
@@ -94,10 +94,16 @@ class CollectorBot:
         # 데이터 정리
         df_상승후보 = analyzer.logic_상승후보.check_조회순위(s_일자=s_일자)
         df_추천종목 = df_상승후보.loc[(df_상승후보['당일조건'])
-                                & (df_상승후보['당일바디'] > -2) & (df_상승후보['당일바디'] < 2)]\
+                                & (df_상승후보['당일바디'] > -2) & (df_상승후보['당일바디'] < 2)].copy()\
                     if len(df_상승후보) > 0 else pd.DataFrame()
-        li_추천종목 = sorted(df_추천종목['종목코드'].unique())
-        dic_코드2종목명 = df_추천종목.set_index('종목코드')['종목명'].to_dict()
+        # dic_코드2종목명 = df_추천종목.set_index('종목코드')['종목명'].to_dict()
+
+        # 상승확률 추가
+        dic_상승확률, s_사용모델 = analyzer.logic_상승확률.calc_상승확률(li_대상종목=df_추천종목['종목코드'].unique())
+        df_추천종목['상승확률'] = [int(dic_상승확률[종목코드]['상승확률']) for 종목코드 in df_추천종목['종목코드']]
+        df_추천종목['상승이유'] = [dic_상승확률[종목코드]['이유'] for 종목코드 in df_추천종목['종목코드']]
+        df_추천종목 = df_추천종목.sort_values('상승확률', ascending=False).reset_index(drop=True)
+        # li_추천종목 = df_추천종목['종목코드'].to_list()
 
         # 데이터 저장
         folder_타겟 = os.path.join(self.folder_종목추천, '조회순위')
@@ -105,9 +111,16 @@ class CollectorBot:
         Tool.df저장(df=df_추천종목, path=os.path.join(folder_타겟, f'df_종목추천_조회순위_{s_일자}'))
 
         # 카톡송부
-        s_메세지 = f'## [{s_일자}] 조회순위 추천종목 {len(li_추천종목)}개 ##'
-        for s_종목코드 in li_추천종목:
-            s_메세지 = s_메세지 + f'\n  {dic_코드2종목명[s_종목코드]}({s_종목코드})'
+        # s_메세지 = f'## [{s_일자}] 조회순위 추천종목 {len(li_추천종목)}개 ##'
+        # for s_종목코드 in li_추천종목:
+        #     s_메세지 = s_메세지 + f'\n  {dic_코드2종목명[s_종목코드]}({s_종목코드})'
+        s_메세지 = f'## [{s_일자}] 조회순위 추천종목 {len(df_추천종목)}개 ##'
+        for idx in df_추천종목.index:
+            n_상승확률 = df_추천종목.loc[idx, '상승확률']
+            s_종목명 = df_추천종목.loc[idx, '종목명']
+            s_종목코드 = df_추천종목.loc[idx, '종목코드']
+            s_메세지 = s_메세지 + f'\n  {n_상승확률}%-{s_종목명}({s_종목코드})'
+        s_메세지 = s_메세지 + f'\n[ {s_사용모델} ]'
         self.kakao.send_메세지(s_사용자='알림봇', s_수신인='여봉이', s_메세지=s_메세지)
 
         # 로그 기록
@@ -129,7 +142,7 @@ def run_조회순위추천():
 
 if __name__ == '__main__':
     try:
-        run_거북이추천()
+        # run_거북이추천()
         run_조회순위추천()
     except KeyboardInterrupt:
         print('\n### [ KeyboardInterrupt detected ] ###')
